@@ -266,11 +266,10 @@ class DStabilityModel(BaseModel):
             Optional[Point]: The point or None if not found
         """
 
-        def convert_wncs_point(self, x: Union[float, str]) -> Optional[Point]:
+        def convert_wncs_point(x: Union[float, str]) -> Optional[Point]:
             if x != "NaN":
                 x = float(x)
-                z = self.z_at(x)
-                return Point(x=x, z=z)
+                return x
             else:
                 return None
 
@@ -280,580 +279,591 @@ class DStabilityModel(BaseModel):
         if wncs is None:
             return None
 
+        x = None
+
         if characteristic_point_type == CharacteristicPointEnum.NONE:
             return None
         elif (
             characteristic_point_type
             == CharacteristicPointEnum.EMBANKEMENT_TOE_WATER_SIDE
         ):
-            return convert_wncs_point(
-                wncs.EmbankmentCharacteristics.EmbankmentToeWaterSide
-            )
+            x = convert_wncs_point(wncs.EmbankmentCharacteristics.EmbankmentToeWaterSide)
         elif (
             characteristic_point_type
             == CharacteristicPointEnum.EMBANKEMENT_TOP_WATER_SIDE
         ):
-            return convert_wncs_point(
-                wncs.EmbankmentCharacteristics.EmbankmentTopWaterSide
-            )
+            x = convert_wncs_point(wncs.EmbankmentCharacteristics.EmbankmentTopWaterSide)
         elif (
             characteristic_point_type == CharacteristicPointEnum.EMBANKEMENT_TOP_LAND_SIDE
         ):
-            return convert_wncs_point(
-                wncs.EmbankmentCharacteristics.EmbankmentTopLandSide
-            )
+            x = convert_wncs_point(wncs.EmbankmentCharacteristics.EmbankmentTopLandSide)
         elif characteristic_point_type == CharacteristicPointEnum.SHOULDER_BASE_LAND_SIDE:
-            return convert_wncs_point(wncs.EmbankmentCharacteristics.ShoulderBaseLandSide)
+            x = convert_wncs_point(wncs.EmbankmentCharacteristics.ShoulderBaseLandSide)
         elif (
             characteristic_point_type == CharacteristicPointEnum.EMBANKEMENT_TOE_LAND_SIDE
         ):
-            return convert_wncs_point(
-                wncs.EmbankmentCharacteristics.EmbankmentToeLandSide
-            )
+            x = convert_wncs_point(wncs.EmbankmentCharacteristics.EmbankmentToeLandSide)
+
         elif characteristic_point_type == CharacteristicPointEnum.DITCH_EMBANKEMENT_SIDE:
-            return convert_wncs_point(wncs.DitchCharacteristics.DitchEmbankmentSide)
+            x = convert_wncs_point(wncs.DitchCharacteristics.DitchEmbankmentSide)
         elif (
             characteristic_point_type
             == CharacteristicPointEnum.DITCH_BOTTOM_EMBANKEMENT_SIDE
         ):
-            return convert_wncs_point(wncs.DitchCharacteristics.DitchBottomEmbankmentSide)
+            x = convert_wncs_point(wncs.DitchCharacteristics.DitchBottomEmbankmentSide)
         elif characteristic_point_type == CharacteristicPointEnum.DITCH_BOTTOM_LAND_SIDE:
-            return convert_wncs_point(wncs.DitchCharacteristics.DitchBottomLandSide)
+            x = convert_wncs_point(wncs.DitchCharacteristics.DitchBottomLandSide)
         elif characteristic_point_type == CharacteristicPointEnum.DITCH_LAND_SIDE:
-            return convert_wncs_point(wncs.DitchCharacteristics.DitchLandSide)
+            x = convert_wncs_point(wncs.DitchCharacteristics.DitchLandSide)
         else:
             raise NotImplementedError(
                 f"No code to deal with point type '{characteristic_point_type}' yet!"
             )
 
-        # def generate_waternet(
-        #     self,
-        #     river_level_mhw: float,
-        #     river_level_ghw: float,
-        #     polder_level: float,
-        #     B_offset: Optional[float] = None,
-        #     C_offset: Optional[float] = None,
-        #     E_offset: Optional[float] = None,
-        #     D_offset: Optional[float] = None,
-        #     surface_offset: float = 0.01,
-        #     x_embankment_toe_land_side: Optional[
-        #         float
-        #     ] = None,  # if None we try to find it using the waternetcreator settings
-        #     x_embankment_top_land_side: Optional[
-        #         float
-        #     ] = None,  # if None we try to find it using the waternetcreator settings
-        #     x_shoulder_base_land_side: Optional[
-        #         float
-        #     ] = None,  # if None we try to find it using the waternetcreator settings
-        #     phreatic_level_embankment_top_waterside: Optional[float] = None,
-        #     phreatic_level_embankment_top_landside: Optional[float] = None,
-        #     aquifer_label: Optional[str] = None,  # it is possible to use the label or the id
-        #     aquifer_id: Optional[str] = (
-        #         None  # NOTE if the id is set, this will be used BEFORE the label
-        #     ),
-        #     aquifer_inside_aquitard_label: Optional[str] = (
-        #         None  # it is possible to use the label or the id
-        #     ),
-        #     aquifer_inside_aquitard_id: Optional[str] = (
-        #         None  # NOTE if the id is set, this will be used BEFORE the label
-        #     ),
-        #     intrusion_length: Optional[float] = 1.0,  # default 1.0 or 3.0 for tidal zones
-        #     hydraulic_head_pl2_inward: Optional[float] = None,
-        #     hydraulic_head_pl2_outward: Optional[float] = None,
-        #     inward_leakage_length_pl3: Optional[float] = None,
-        #     outward_leakage_length_pl3: Optional[float] = None,
-        #     inward_leakage_length_pl4: Optional[float] = None,
-        #     outward_leakage_length_pl4: Optional[float] = None,
-        #     adjust_for_uplift: bool = False,
-        # ):
-        #     wncs = self._get_waternetcreator_settings()
+        return Point(x=x, z=self.z_at(x))
 
-        #     if x_embankment_toe_land_side is None:
-        #         if wncs is None:
-        #             raise CalculationError(f"We need a value for x_embankment_toe_land_side which is not given and no waternet creator settings were found.")
-        #         if wncs.EmbankmentCharacteristics.EmbankmentToeWaterSide is not "NaN":
-        #             x_embankment_toe_land_side =  float(wncs.EmbankmentCharacteristics.EmbankmentToeWaterSide)
-        #         else:
-        #             raise CalculationError(f"Invalid value '{}' for x_embankment_toe_land_side found in the waternet creator settings.")
-        #     if x_embankment_top_land_side is None:
-        #         if wncs is None:
-        #             raise CalculationError(f"We need a value for x_embankment_top_land_side which is not given and no waternet creator settings were found.")
+    def generate_waternet(
+        self,
+        river_level_mhw: float,
+        river_level_ghw: float,
+        polder_level: float,
+        B_offset: Optional[float] = None,
+        C_offset: Optional[float] = None,
+        E_offset: Optional[float] = None,
+        D_offset: Optional[float] = None,
+        surface_offset: float = 0.01,
+        x_embankment_toe_land_side: Optional[
+            float
+        ] = None,  # if None we try to find it using the waternetcreator settings
+        x_embankment_top_land_side: Optional[
+            float
+        ] = None,  # if None we try to find it using the waternetcreator settings
+        x_shoulder_base_land_side: Optional[
+            float
+        ] = None,  # if None we try to find it using the waternetcreator settings
+        phreatic_level_embankment_top_waterside: Optional[float] = None,
+        phreatic_level_embankment_top_landside: Optional[float] = None,
+        aquifer_label: Optional[str] = None,  # it is possible to use the label or the id
+        aquifer_id: Optional[str] = (
+            None  # NOTE if the id is set, this will be used BEFORE the label
+        ),
+        aquifer_inside_aquitard_label: Optional[str] = (
+            None  # it is possible to use the label or the id
+        ),
+        aquifer_inside_aquitard_id: Optional[str] = (
+            None  # NOTE if the id is set, this will be used BEFORE the label
+        ),
+        intrusion_length: Optional[float] = 1.0,  # default 1.0 or 3.0 for tidal zones
+        hydraulic_head_pl2_inward: Optional[float] = None,
+        hydraulic_head_pl2_outward: Optional[float] = None,
+        inward_leakage_length_pl3: Optional[float] = None,
+        outward_leakage_length_pl3: Optional[float] = None,
+        inward_leakage_length_pl4: Optional[float] = None,
+        outward_leakage_length_pl4: Optional[float] = None,
+        adjust_for_uplift: bool = False,
+    ):
+        wncs = self._get_waternetcreator_settings(
+            self.current_scenario, self.current_stage
+        )
 
-        #     if x_shoulder_base_land_side is None:
-        #         if wncs is None:
-        #             raise CalculationError(f"We need a value for x_shoulder_base_land_side which is not given and no waternet creator settings were found.")
+        if x_embankment_toe_land_side is None:
+            pt_embankment_toe_land_side = self.get_characteristic_point(
+                CharacteristicPointEnum.EMBANKEMENT_TOP_LAND_SIDE
+            )
+            if pt_embankment_toe_land_side is None:
+                raise CalculationError(
+                    f"Cannot generate the phreatic line because the x coordinate for the embankment top land side is not given."
+                )
+            x_embankment_toe_land_side = pt_embankment_toe_land_side.x
 
-        #     x = ds.get_characteristic_point(
-        #         CharacteristicPointType.EMBANKEMENT_TOE_LAND_SIDE
-        #     ).x
-        #     h = self.river_level_mhw - ds.z_at(x)
+        i = 1
 
-        #     # point A - (ALL) - Intersection of the river water level with the outer slope
-        #     intersections = line_polyline_intersections(
-        #         ds.left, self.river_level_mhw, ds.right, self.river_level_mhw, ds.surface
-        #     )
+    #     if x_embankment_toe_land_side is None:
+    #         if wncs is None:
+    #             raise CalculationError(f"We need a value for x_embankment_toe_land_side which is not given and no waternet creator settings were found.")
+    #         if wncs.EmbankmentCharacteristics.EmbankmentToeWaterSide is not "NaN":
+    #             x_embankment_toe_land_side =  float(wncs.EmbankmentCharacteristics.EmbankmentToeWaterSide)
+    #         else:
+    #             raise CalculationError(f"Invalid value '{}' for x_embankment_toe_land_side found in the waternet creator settings.")
+    #     if x_embankment_top_land_side is None:
+    #         if wncs is None:
+    #             raise CalculationError(f"We need a value for x_embankment_top_land_side which is not given and no waternet creator settings were found.")
 
-        #     if len(intersections) == 0:
-        #         raise AlgorithmExecutionError(
-        #             f"No intersection with the surface and the given river level ({self.river_level_mhw}) found."
-        #         )
+    #     if x_shoulder_base_land_side is None:
+    #         if wncs is None:
+    #             raise CalculationError(f"We need a value for x_shoulder_base_land_side which is not given and no waternet creator settings were found.")
 
-        #     Ax, Az = intersections[0]
+    #     x = ds.get_characteristic_point(
+    #         CharacteristicPointType.EMBANKEMENT_TOE_LAND_SIDE
+    #     ).x
+    #     h = self.river_level_mhw - ds.z_at(x)
 
-        #     # Point E is needed for interpolation so we calculate this first
-        #     # Point E1 (CLAY DIKE) Surface level at dike toe minus offset, with default offset 0 m
-        #     Ex = ds.get_characteristic_point(
-        #         CharacteristicPointType.EMBANKEMENT_TOE_LAND_SIDE
-        #     ).x
-        #     Ez1 = ds.z_at(Ex)
-        #     if self.E_offset is not None:
-        #         # user defined offset (if no user defined offset the the default offset equals zero)
-        #         Ez1 -= self.E_offset
+    #     # point A - (ALL) - Intersection of the river water level with the outer slope
+    #     intersections = line_polyline_intersections(
+    #         ds.left, self.river_level_mhw, ds.right, self.river_level_mhw, ds.surface
+    #     )
 
-        #     # Point E2 (SAND ON CLAY) Surface level at dike toe minus offset, with default offset −0.25 × (river level - polder level).
-        #     Ez2 = ds.z_at(Ex)
-        #     if self.E_offset is None:
-        #         Ez2 += 0.25 * h
-        #     else:
-        #         Ez2 += self.E_offset
+    #     if len(intersections) == 0:
+    #         raise AlgorithmExecutionError(
+    #             f"No intersection with the surface and the given river level ({self.river_level_mhw}) found."
+    #         )
 
-        #     # Point E3 (SAND ON CLAY) = E2 (SAND ON SAND)
-        #     Ez3 = Ez2
+    #     Ax, Az = intersections[0]
 
-        #     # Point E must be equal to or above polder level
-        #     Ez1 = max(self.polder_level, Ez1)
-        #     Ez2 = max(self.polder_level, Ez2)
-        #     Ez3 = max(self.polder_level, Ez3)
+    #     # Point E is needed for interpolation so we calculate this first
+    #     # Point E1 (CLAY DIKE) Surface level at dike toe minus offset, with default offset 0 m
+    #     Ex = ds.get_characteristic_point(
+    #         CharacteristicPointType.EMBANKEMENT_TOE_LAND_SIDE
+    #     ).x
+    #     Ez1 = ds.z_at(Ex)
+    #     if self.E_offset is not None:
+    #         # user defined offset (if no user defined offset the the default offset equals zero)
+    #         Ez1 -= self.E_offset
 
-        #     # Point B1 (CLAY DIKE) River water level minus offset, with default offset 1 m, limited by minimum value ZB;initial, see section 3.3.1.2.
-        #     # TODO
-        #     # There seems to be an inconsitency in DStability
-        #     # If you fill in 0.0 for the values under Phreatic level in embankment at points
-        #     # Then the z values will be calculated but if you fill in another value
-        #     # these will be used as the z values
-        #     # in other words, it is not possible to fill in 0.0 as the actual waterlevel
-        #     # Unfortunately we need to also make use of this method
-        #     Bx1 = Ax + 1.0
-        #     if (
-        #         self.phreatic_level_embankment_top_waterside is not None
-        #         and self.phreatic_level_embankment_top_waterside != 0.0
-        #     ):
-        #         # user defined pl
-        #         Bz1 = self.phreatic_level_embankment_top_waterside
-        #     elif self.B_offset is not None:
-        #         # user defined offset
-        #         Bz1 = self.river_level_mhw - self.B_offset
-        #     else:  # default offset
-        #         Bz1 = self.river_level_mhw - 1.0
+    #     # Point E2 (SAND ON CLAY) Surface level at dike toe minus offset, with default offset −0.25 × (river level - polder level).
+    #     Ez2 = ds.z_at(Ex)
+    #     if self.E_offset is None:
+    #         Ez2 += 0.25 * h
+    #     else:
+    #         Ez2 += self.E_offset
 
-        #     # Point B2 (SAND ON CLAY) River water level minus offset, with default offset 0.5 × (river level - dike toe polder level), limited by minimum value ZB;initial, see section 3.3.1.2.
-        #     Bx2 = Ax + 0.001
-        #     if (
-        #         self.phreatic_level_embankment_top_waterside is not None
-        #         and self.phreatic_level_embankment_top_waterside != 0.0
-        #     ):
-        #         # user defined pl
-        #         Bz2 = self.phreatic_level_embankment_top_waterside
-        #     elif self.B_offset is not None:
-        #         # user defined offset
-        #         Bz2 = self.river_level_mhw - self.B_offset
-        #     else:
-        #         # default offset
-        #         Bz2 = self.river_level_mhw - 0.5 * h
+    #     # Point E3 (SAND ON CLAY) = E2 (SAND ON SAND)
+    #     Ez3 = Ez2
 
-        #     # Point B3 (SAND ON SAND) Linear interpolation between point A and point E, limited by minimum value ZB;initial, see section 3.3.1.2.
-        #     Bx3 = Ax + 0.001
-        #     if (
-        #         self.phreatic_level_embankment_top_waterside is not None
-        #         and self.phreatic_level_embankment_top_waterside != 0.0
-        #     ):
-        #         # user defined pl
-        #         Bz3 = self.phreatic_level_embankment_top_waterside
-        #     else:
-        #         # lineair interpolation
-        #         Bz3 = Az + (Bx3 - Ax) / (Ex - Ax) * (Ez3 - Az)
+    #     # Point E must be equal to or above polder level
+    #     Ez1 = max(self.polder_level, Ez1)
+    #     Ez2 = max(self.polder_level, Ez2)
+    #     Ez3 = max(self.polder_level, Ez3)
 
-        #     # Point C1 (CLAY DIKE) River water level minus offset, with default offset 1.5 m, limited by minimum value ZC;initial, see section 3.3.1.2.
-        #     # TODO > Same inconsistency as point B, only solvable if DStab is fixed
-        #     Cx = ds.get_characteristic_point(
-        #         CharacteristicPointType.EMBANKEMENT_TOP_LAND_SIDE
-        #     ).x
-        #     if (
-        #         self.phreatic_level_embankment_top_landside is not None
-        #         and self.phreatic_level_embankment_top_landside != 0.0
-        #     ):
-        #         Cz1 = self.phreatic_level_embankment_top_landside
-        #     elif self.C_offset is not None:
-        #         Cz1 = self.river_level_mhw - self.C_offset
-        #     else:
-        #         Cz1 = self.river_level_mhw - 1.5
+    #     # Point B1 (CLAY DIKE) River water level minus offset, with default offset 1 m, limited by minimum value ZB;initial, see section 3.3.1.2.
+    #     # TODO
+    #     # There seems to be an inconsitency in DStability
+    #     # If you fill in 0.0 for the values under Phreatic level in embankment at points
+    #     # Then the z values will be calculated but if you fill in another value
+    #     # these will be used as the z values
+    #     # in other words, it is not possible to fill in 0.0 as the actual waterlevel
+    #     # Unfortunately we need to also make use of this method
+    #     Bx1 = Ax + 1.0
+    #     if (
+    #         self.phreatic_level_embankment_top_waterside is not None
+    #         and self.phreatic_level_embankment_top_waterside != 0.0
+    #     ):
+    #         # user defined pl
+    #         Bz1 = self.phreatic_level_embankment_top_waterside
+    #     elif self.B_offset is not None:
+    #         # user defined offset
+    #         Bz1 = self.river_level_mhw - self.B_offset
+    #     else:  # default offset
+    #         Bz1 = self.river_level_mhw - 1.0
 
-        #     # Point C2 (SAND ON CLAY) Linear interpolation between point B and point E, limited by minimum value ZC;initial, see section 3.3.1.2.
-        #     if (
-        #         self.phreatic_level_embankment_top_landside is not None
-        #         and self.phreatic_level_embankment_top_landside != 0.0
-        #     ):
-        #         Cz2 = self.phreatic_level_embankment_top_landside
-        #     else:
-        #         Cz2 = Bz2 + (Cx - Bx2) / (Ex - Bx2) * (Ez2 - Bz2)
+    #     # Point B2 (SAND ON CLAY) River water level minus offset, with default offset 0.5 × (river level - dike toe polder level), limited by minimum value ZB;initial, see section 3.3.1.2.
+    #     Bx2 = Ax + 0.001
+    #     if (
+    #         self.phreatic_level_embankment_top_waterside is not None
+    #         and self.phreatic_level_embankment_top_waterside != 0.0
+    #     ):
+    #         # user defined pl
+    #         Bz2 = self.phreatic_level_embankment_top_waterside
+    #     elif self.B_offset is not None:
+    #         # user defined offset
+    #         Bz2 = self.river_level_mhw - self.B_offset
+    #     else:
+    #         # default offset
+    #         Bz2 = self.river_level_mhw - 0.5 * h
 
-        #     # Point C3 (SAND ON SAND) Linear interpolation between point A and point E, limited by minimum value ZC;initial, see section 3.3.1.2.
-        #     if (
-        #         self.phreatic_level_embankment_top_landside is not None
-        #         and self.phreatic_level_embankment_top_landside != 0.0
-        #     ):
-        #         Cz3 = self.phreatic_level_embankment_top_landside
-        #     else:
-        #         Cz3 = Az + (Cx - Ax) / (Ex - Ax) * (Ez3 - Az)
+    #     # Point B3 (SAND ON SAND) Linear interpolation between point A and point E, limited by minimum value ZB;initial, see section 3.3.1.2.
+    #     Bx3 = Ax + 0.001
+    #     if (
+    #         self.phreatic_level_embankment_top_waterside is not None
+    #         and self.phreatic_level_embankment_top_waterside != 0.0
+    #     ):
+    #         # user defined pl
+    #         Bz3 = self.phreatic_level_embankment_top_waterside
+    #     else:
+    #         # lineair interpolation
+    #         Bz3 = Az + (Bx3 - Ax) / (Ex - Ax) * (Ez3 - Az)
 
-        #     shoulder_point = ds.get_characteristic_point(
-        #         CharacteristicPointType.SHOULDER_BASE_LAND_SIDE
-        #     )
-        #     if shoulder_point.is_valid:
-        #         Dx = shoulder_point.x
+    #     # Point C1 (CLAY DIKE) River water level minus offset, with default offset 1.5 m, limited by minimum value ZC;initial, see section 3.3.1.2.
+    #     # TODO > Same inconsistency as point B, only solvable if DStab is fixed
+    #     Cx = ds.get_characteristic_point(
+    #         CharacteristicPointType.EMBANKEMENT_TOP_LAND_SIDE
+    #     ).x
+    #     if (
+    #         self.phreatic_level_embankment_top_landside is not None
+    #         and self.phreatic_level_embankment_top_landside != 0.0
+    #     ):
+    #         Cz1 = self.phreatic_level_embankment_top_landside
+    #     elif self.C_offset is not None:
+    #         Cz1 = self.river_level_mhw - self.C_offset
+    #     else:
+    #         Cz1 = self.river_level_mhw - 1.5
 
-        #         # Point D1 (CLAY DIKE) Linear interpolation between point C and point E, unless the user defines an offset Doffset;user with respect to the surface level.
-        #         if self.D_offset is not None:
-        #             Dz1 = ds.z_at(Dx) - self.D_offset
-        #         else:
-        #             Dz1 = Cz1 + (Dx - Cx) / (Ex - Cx) * (Ez1 - Cz1)
+    #     # Point C2 (SAND ON CLAY) Linear interpolation between point B and point E, limited by minimum value ZC;initial, see section 3.3.1.2.
+    #     if (
+    #         self.phreatic_level_embankment_top_landside is not None
+    #         and self.phreatic_level_embankment_top_landside != 0.0
+    #     ):
+    #         Cz2 = self.phreatic_level_embankment_top_landside
+    #     else:
+    #         Cz2 = Bz2 + (Cx - Bx2) / (Ex - Bx2) * (Ez2 - Bz2)
 
-        #         # Point D2 (SAND ON CLAY) Linear interpolation between point B and point E, unless the user defines an offset Doffset;user with respect to the surface level.
-        #         if self.D_offset is not None:
-        #             Dz2 = ds.z_at(Dx) - self.D_offset
-        #         else:
-        #             Dz2 = Bz2 + (Dx - Bx2) / (Ex - Bx2) * (Ez2 - Bz2)
+    #     # Point C3 (SAND ON SAND) Linear interpolation between point A and point E, limited by minimum value ZC;initial, see section 3.3.1.2.
+    #     if (
+    #         self.phreatic_level_embankment_top_landside is not None
+    #         and self.phreatic_level_embankment_top_landside != 0.0
+    #     ):
+    #         Cz3 = self.phreatic_level_embankment_top_landside
+    #     else:
+    #         Cz3 = Az + (Cx - Ax) / (Ex - Ax) * (Ez3 - Az)
 
-        #         # Point D3 (SAND ON SAND) Linear interpolation between point A and point E, unless the user defines an offset Doffset;user with respect to the surface level
-        #         if self.D_offset is not None:
-        #             Dz3 = ds.z_at(Dx) - self.D_offset
-        #         else:
-        #             Dz3 = Az + (Dx - Ax) / (Ex - Ax) * (Ez3 - Az)
-        #     else:  # add D as lin interpolated point between C and E
-        #         Dx = (Ex + Cx) / 2.0
-        #         Dz1 = (Ez1 + Cz1) / 2.0
-        #         Dz2 = (Ez2 + Cz2) / 2.0
-        #         Dz3 = (Ez3 + Cz3) / 2.0
+    #     shoulder_point = ds.get_characteristic_point(
+    #         CharacteristicPointType.SHOULDER_BASE_LAND_SIDE
+    #     )
+    #     if shoulder_point.is_valid:
+    #         Dx = shoulder_point.x
 
-        #     # Point D must be equal to or above polder level
-        #     Dz1 = max(self.polder_level, Dz1)
-        #     Dz2 = max(self.polder_level, Dz2)
-        #     Dz3 = max(self.polder_level, Dz3)
+    #         # Point D1 (CLAY DIKE) Linear interpolation between point C and point E, unless the user defines an offset Doffset;user with respect to the surface level.
+    #         if self.D_offset is not None:
+    #             Dz1 = ds.z_at(Dx) - self.D_offset
+    #         else:
+    #             Dz1 = Cz1 + (Dx - Cx) / (Ex - Cx) * (Ez1 - Cz1)
 
-        #     # Point D must be equal to or below point C
-        #     Dz1 = min(Cz1, Dz1)
-        #     Dz2 = min(Cz2, Dz2)
-        #     Dz3 = min(Cz3, Dz3)
+    #         # Point D2 (SAND ON CLAY) Linear interpolation between point B and point E, unless the user defines an offset Doffset;user with respect to the surface level.
+    #         if self.D_offset is not None:
+    #             Dz2 = ds.z_at(Dx) - self.D_offset
+    #         else:
+    #             Dz2 = Bz2 + (Dx - Bx2) / (Ex - Bx2) * (Ez2 - Bz2)
 
-        #     # Point E must be equal to or below point D
-        #     # TODO > what if we adjust this value but E is already used for interpolation
-        #     Ez1 = min(Dz1, Ez1)
-        #     Ez2 = min(Dz2, Ez2)
-        #     Ez3 = min(Dz3, Ez3)
+    #         # Point D3 (SAND ON SAND) Linear interpolation between point A and point E, unless the user defines an offset Doffset;user with respect to the surface level
+    #         if self.D_offset is not None:
+    #             Dz3 = ds.z_at(Dx) - self.D_offset
+    #         else:
+    #             Dz3 = Az + (Dx - Ax) / (Ex - Ax) * (Ez3 - Az)
+    #     else:  # add D as lin interpolated point between C and E
+    #         Dx = (Ex + Cx) / 2.0
+    #         Dz1 = (Ez1 + Cz1) / 2.0
+    #         Dz2 = (Ez2 + Cz2) / 2.0
+    #         Dz3 = (Ez3 + Cz3) / 2.0
 
-        #     # Point F Intersection point polder level with ditch (is determined automatically)
-        #     Fz = self.polder_level
-        #     if len(ds.ditch_points) > 0:  # with ditch find intersection
-        #         intersections = line_polyline_intersections(
-        #             ds.left, self.polder_level, ds.right, self.polder_level, ds.ditch_points
-        #         )
-        #         if intersections is not None and len(intersections) > 0:
-        #             Fx1, _ = intersections[0]
-        #             Fx2 = Fx1
-        #             Fx3 = Fx1
-        #     else:
-        #         # If no ditch, lin extrapolation to polder level from C to E
-        #         Fx1 = Ex + (Ez1 - Fz) * (Ex - Cx) / (Ez1 - Cz1)
-        #         Fx2 = Ex + (Ez2 - Fz) * (Ex - Cx) / (Ez2 - Cz2)
-        #         Fx3 = Ex + (Ez3 - Fz) * (Ex - Cx) / (Ez3 - Cz3)
+    #     # Point D must be equal to or above polder level
+    #     Dz1 = max(self.polder_level, Dz1)
+    #     Dz2 = max(self.polder_level, Dz2)
+    #     Dz3 = max(self.polder_level, Dz3)
 
-        #     if (
-        #         ds.material_layout == MaterialLayoutType.CLAY_EMBANKEMENT_ON_CLAY
-        #         or ds.material_layout == MaterialLayoutType.CLAY_EMBANKEMENT_ON_SAND
-        #     ):
-        #         abcdef = [[Ax, Az], [Bx1, Bz1], [Cx, Cz1], [Dx, Dz1], [Ex, Ez1], [Fx1, Fz]]
-        #     elif ds.material_layout == MaterialLayoutType.SAND_EMBANKEMENT_ON_CLAY:
-        #         abcdef = [[Ax, Az], [Bx2, Bz2], [Cx, Cz2], [Dx, Dz2], [Ex, Ez2], [Fx2, Fz]]
-        #     elif ds.material_layout == MaterialLayoutType.SAND_EMBANKEMENT_ON_SAND:
-        #         abcdef = [[Ax, Az], [Bx3, Bz3], [Cx, Cz3], [Dx, Dz3], [Ex, Ez3], [Fx3, Fz]]
-        #     else:
-        #         raise ValueError(f"Unknown material layout '{ds.material_layout}'")
+    #     # Point D must be equal to or below point C
+    #     Dz1 = min(Cz1, Dz1)
+    #     Dz2 = min(Cz2, Dz2)
+    #     Dz3 = min(Cz3, Dz3)
 
-        #     # Make sure the phreatic line does not exceed the surface
-        #     # Between A and F
-        #     # 1. get all surface points
-        #     surface_points = [
-        #         p for p in ds.surface if p[0] > abcdef[0][0] and p[0] < abcdef[-1][0]
-        #     ]
-        #     # 2. get all intersections between surface and pl line
-        #     intersections = [
-        #         p
-        #         for p in polyline_polyline_intersections(abcdef, ds.surface)
-        #         if p[0] > Ax and p[0] < Ex
-        #     ]
-        #     # 3. merge x coords
-        #     check_points = sorted(
-        #         list(set([p[0] for p in surface_points + intersections + abcdef[1:-1]]))
-        #     )
+    #     # Point E must be equal to or below point D
+    #     # TODO > what if we adjust this value but E is already used for interpolation
+    #     Ez1 = min(Dz1, Ez1)
+    #     Ez2 = min(Dz2, Ez2)
+    #     Ez3 = min(Dz3, Ez3)
 
-        #     # create the final points, start with the leftmost point
-        #     final_points = [[ds.left, self.river_level_mhw], abcdef[0]]
-        #     # now add the points
-        #     for x in check_points:
-        #         for i in range(1, len(abcdef)):
-        #             x1, z1 = abcdef[i - 1]
-        #             x2, z2 = abcdef[i]
-        #             if x1 <= x and x <= x2:
-        #                 z_pl = z1 + (x - x1) / (x2 - x1) * (z2 - z1)
-        #                 z_surface = ds.z_at(x)
+    #     # Point F Intersection point polder level with ditch (is determined automatically)
+    #     Fz = self.polder_level
+    #     if len(ds.ditch_points) > 0:  # with ditch find intersection
+    #         intersections = line_polyline_intersections(
+    #             ds.left, self.polder_level, ds.right, self.polder_level, ds.ditch_points
+    #         )
+    #         if intersections is not None and len(intersections) > 0:
+    #             Fx1, _ = intersections[0]
+    #             Fx2 = Fx1
+    #             Fx3 = Fx1
+    #     else:
+    #         # If no ditch, lin extrapolation to polder level from C to E
+    #         Fx1 = Ex + (Ez1 - Fz) * (Ex - Cx) / (Ez1 - Cz1)
+    #         Fx2 = Ex + (Ez2 - Fz) * (Ex - Cx) / (Ez2 - Cz2)
+    #         Fx3 = Ex + (Ez3 - Fz) * (Ex - Cx) / (Ez3 - Cz3)
 
-        #                 if z_pl > z_surface - 0.01:
-        #                     z_pl = z_surface - 0.01
+    #     if (
+    #         ds.material_layout == MaterialLayoutType.CLAY_EMBANKEMENT_ON_CLAY
+    #         or ds.material_layout == MaterialLayoutType.CLAY_EMBANKEMENT_ON_SAND
+    #     ):
+    #         abcdef = [[Ax, Az], [Bx1, Bz1], [Cx, Cz1], [Dx, Dz1], [Ex, Ez1], [Fx1, Fz]]
+    #     elif ds.material_layout == MaterialLayoutType.SAND_EMBANKEMENT_ON_CLAY:
+    #         abcdef = [[Ax, Az], [Bx2, Bz2], [Cx, Cz2], [Dx, Dz2], [Ex, Ez2], [Fx2, Fz]]
+    #     elif ds.material_layout == MaterialLayoutType.SAND_EMBANKEMENT_ON_SAND:
+    #         abcdef = [[Ax, Az], [Bx3, Bz3], [Cx, Cz3], [Dx, Dz3], [Ex, Ez3], [Fx3, Fz]]
+    #     else:
+    #         raise ValueError(f"Unknown material layout '{ds.material_layout}'")
 
-        #                 if z_pl > final_points[-1][1]:
-        #                     z_pl = final_points[-1][1]
+    #     # Make sure the phreatic line does not exceed the surface
+    #     # Between A and F
+    #     # 1. get all surface points
+    #     surface_points = [
+    #         p for p in ds.surface if p[0] > abcdef[0][0] and p[0] < abcdef[-1][0]
+    #     ]
+    #     # 2. get all intersections between surface and pl line
+    #     intersections = [
+    #         p
+    #         for p in polyline_polyline_intersections(abcdef, ds.surface)
+    #         if p[0] > Ax and p[0] < Ex
+    #     ]
+    #     # 3. merge x coords
+    #     check_points = sorted(
+    #         list(set([p[0] for p in surface_points + intersections + abcdef[1:-1]]))
+    #     )
 
-        #                 final_points.append([x, z_pl])
-        #                 break
+    #     # create the final points, start with the leftmost point
+    #     final_points = [[ds.left, self.river_level_mhw], abcdef[0]]
+    #     # now add the points
+    #     for x in check_points:
+    #         for i in range(1, len(abcdef)):
+    #             x1, z1 = abcdef[i - 1]
+    #             x2, z2 = abcdef[i]
+    #             if x1 <= x and x <= x2:
+    #                 z_pl = z1 + (x - x1) / (x2 - x1) * (z2 - z1)
+    #                 z_surface = ds.z_at(x)
 
-        #     # add F and the rightmost point
-        #     final_points += [abcdef[-1], [ds.right, self.polder_level]]
-        #     pl_id = ds.set_phreatic_line(final_points)
+    #                 if z_pl > z_surface - 0.01:
+    #                     z_pl = z_surface - 0.01
 
-        #     # Add the referenceline for the phreatic zone top
-        #     ds.model.add_reference_line(
-        #         points=[Point(x=p[0], z=p[1]) for p in ds.surface],
-        #         top_head_line_id=pl_id,
-        #         bottom_headline_id=pl_id,
-        #         scenario_index=ds.current_scenario_index,
-        #         stage_index=ds.current_stage_index,
-        #         label="Freatische zone bovenkant",
-        #     )
-        #     # Add the referenceline for the phreatic zone bottom 1 (bottom of the top layer)
-        #     toplayer_points = ds.get_top_layer()["points"]
-        #     bottom_line_pl1 = get_bottom_of_polygon(toplayer_points)
-        #     ds.model.add_reference_line(
-        #         points=[Point(x=p[0], z=p[1]) for p in bottom_line_pl1],
-        #         top_head_line_id=pl_id,
-        #         bottom_headline_id=pl_id,
-        #         scenario_index=ds.current_scenario_index,
-        #         stage_index=ds.current_stage_index,
-        #         label="Freatische zone onderkant (1)",
-        #     )
+    #                 if z_pl > final_points[-1][1]:
+    #                     z_pl = final_points[-1][1]
 
-        #     # For scenario “Sand dike on sand” (2B), only PL1 (Phreatic line) is created
-        #     if ds.material_layout == MaterialLayoutType.SAND_EMBANKEMENT_ON_SAND:
-        #         return ds
+    #                 final_points.append([x, z_pl])
+    #                 break
 
-        #     # if we have no aquifer then we have no PL2, PL3 or PL4
-        #     if self.aquifer_label is None and self.aquifer_id is None:
-        #         return ds
+    #     # add F and the rightmost point
+    #     final_points += [abcdef[-1], [ds.right, self.polder_level]]
+    #     pl_id = ds.set_phreatic_line(final_points)
 
-        #     # get the aquifer layer, note that the check if the layer exists already takes place in check_input
-        #     aquifer_layer = None
-        #     if self.aquifer_id is not None:
-        #         aquifer_layer = ds.get_layer_by_id(self.aquifer_id)
-        #     elif self.aquifer_label is not None:
-        #         aquifer_layer = ds.get_layer_by_label(self.aquifer_label)
+    #     # Add the referenceline for the phreatic zone top
+    #     ds.model.add_reference_line(
+    #         points=[Point(x=p[0], z=p[1]) for p in ds.surface],
+    #         top_head_line_id=pl_id,
+    #         bottom_headline_id=pl_id,
+    #         scenario_index=ds.current_scenario_index,
+    #         stage_index=ds.current_stage_index,
+    #         label="Freatische zone bovenkant",
+    #     )
+    #     # Add the referenceline for the phreatic zone bottom 1 (bottom of the top layer)
+    #     toplayer_points = ds.get_top_layer()["points"]
+    #     bottom_line_pl1 = get_bottom_of_polygon(toplayer_points)
+    #     ds.model.add_reference_line(
+    #         points=[Point(x=p[0], z=p[1]) for p in bottom_line_pl1],
+    #         top_head_line_id=pl_id,
+    #         bottom_headline_id=pl_id,
+    #         scenario_index=ds.current_scenario_index,
+    #         stage_index=ds.current_stage_index,
+    #         label="Freatische zone onderkant (1)",
+    #     )
 
-        #     aquifer_points = get_top_of_polygon(
-        #         [[float(p.X), float(p.Z)] for p in aquifer_layer.Points]
-        #     )
+    #     # For scenario “Sand dike on sand” (2B), only PL1 (Phreatic line) is created
+    #     if ds.material_layout == MaterialLayoutType.SAND_EMBANKEMENT_ON_SAND:
+    #         return ds
 
-        #     #######
-        #     # PL2 #
-        #     #######
-        #     if self.intrusion_length is not None:
-        #         if self.hydraulic_head_pl2_inward is None:
-        #             self.hydraulic_head_pl2_inward = self.river_level_ghw
-        #         else:
-        #             self.hydraulic_head_pl2_inward = min(
-        #                 self.hydraulic_head_pl2_inward, self.river_level_ghw
-        #             )
-        #         if self.hydraulic_head_pl2_outward is None:
-        #             self.hydraulic_head_pl2_outward = self.river_level_ghw
-        #         else:
-        #             self.hydraulic_head_pl2_outward = min(
-        #                 self.hydraulic_head_pl2_outward, self.river_level_ghw
-        #             )
+    #     # if we have no aquifer then we have no PL2, PL3 or PL4
+    #     if self.aquifer_label is None and self.aquifer_id is None:
+    #         return ds
 
-        #         pl2points = [
-        #             [ds.left, self.hydraulic_head_pl2_inward],
-        #             [ds.right, self.hydraulic_head_pl2_outward],
-        #         ]
+    #     # get the aquifer layer, note that the check if the layer exists already takes place in check_input
+    #     aquifer_layer = None
+    #     if self.aquifer_id is not None:
+    #         aquifer_layer = ds.get_layer_by_id(self.aquifer_id)
+    #     elif self.aquifer_label is not None:
+    #         aquifer_layer = ds.get_layer_by_label(self.aquifer_label)
 
-        #         # add the headline
-        #         pl2_id = ds.model.add_head_line(
-        #             points=[Point(x=p[0], z=p[1]) for p in pl2points],
-        #             label="Stijghoogtelijn 2 (PL2)",
-        #             scenario_index=ds.current_scenario_index,
-        #             stage_index=ds.current_stage_index,
-        #         )
+    #     aquifer_points = get_top_of_polygon(
+    #         [[float(p.X), float(p.Z)] for p in aquifer_layer.Points]
+    #     )
 
-        #         # add the penetration_layer_thickness
-        #         aquifer_points_with_penetration_layer = [
-        #             [p[0], p[1] + self.intrusion_length] for p in aquifer_points
-        #         ]
+    #     #######
+    #     # PL2 #
+    #     #######
+    #     if self.intrusion_length is not None:
+    #         if self.hydraulic_head_pl2_inward is None:
+    #             self.hydraulic_head_pl2_inward = self.river_level_ghw
+    #         else:
+    #             self.hydraulic_head_pl2_inward = min(
+    #                 self.hydraulic_head_pl2_inward, self.river_level_ghw
+    #             )
+    #         if self.hydraulic_head_pl2_outward is None:
+    #             self.hydraulic_head_pl2_outward = self.river_level_ghw
+    #         else:
+    #             self.hydraulic_head_pl2_outward = min(
+    #                 self.hydraulic_head_pl2_outward, self.river_level_ghw
+    #             )
 
-        #         # add the referenceline
-        #         ds.model.add_reference_line(
-        #             points=[
-        #                 Point(x=p[0], z=p[1]) for p in aquifer_points_with_penetration_layer
-        #             ],
-        #             bottom_headline_id=pl2_id,
-        #             top_head_line_id=pl2_id,
-        #             label="Indringingszone onderste aquifer",
-        #             scenario_index=ds.current_scenario_index,
-        #             stage_index=ds.current_stage_index,
-        #         )
+    #         pl2points = [
+    #             [ds.left, self.hydraulic_head_pl2_inward],
+    #             [ds.right, self.hydraulic_head_pl2_outward],
+    #         ]
 
-        #     #######
-        #     # PL3 #
-        #     #######
+    #         # add the headline
+    #         pl2_id = ds.model.add_head_line(
+    #             points=[Point(x=p[0], z=p[1]) for p in pl2points],
+    #             label="Stijghoogtelijn 2 (PL2)",
+    #             scenario_index=ds.current_scenario_index,
+    #             stage_index=ds.current_stage_index,
+    #         )
 
-        #     A1B = [ds.left, self.river_level_mhw]
-        #     B1B = [
-        #         ds.get_characteristic_point(
-        #             CharacteristicPointType.EMBANKEMENT_TOE_WATER_SIDE
-        #         ).x,
-        #         self.river_level_mhw,
-        #     ]
+    #         # add the penetration_layer_thickness
+    #         aquifer_points_with_penetration_layer = [
+    #             [p[0], p[1] + self.intrusion_length] for p in aquifer_points
+    #         ]
 
-        #     # SCENARIO 1B - Clay on sand
-        #     if ds.material_layout == MaterialLayoutType.CLAY_EMBANKEMENT_ON_SAND:
-        #         D1B = (Ex, ds.z_at(Ex))
-        #         G1B = (ds.right, D1B[1])
+    #         # add the referenceline
+    #         ds.model.add_reference_line(
+    #             points=[
+    #                 Point(x=p[0], z=p[1]) for p in aquifer_points_with_penetration_layer
+    #             ],
+    #             bottom_headline_id=pl2_id,
+    #             top_head_line_id=pl2_id,
+    #             label="Indringingszone onderste aquifer",
+    #             scenario_index=ds.current_scenario_index,
+    #             stage_index=ds.current_stage_index,
+    #         )
 
-        #         pl3_id = ds.model.add_head_line(
-        #             points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, D1B, G1B]],
-        #             label="Stijghoogtelijn 3 (PL3)",
-        #             scenario_index=ds.current_scenario_index,
-        #             stage_index=ds.current_stage_index,
-        #         )
+    #     #######
+    #     # PL3 #
+    #     #######
 
-        #         ds.model.add_reference_line(
-        #             points=[Point(x=p[0], z=p[1]) for p in aquifer_points],
-        #             bottom_headline_id=pl3_id,
-        #             top_head_line_id=pl3_id,
-        #             label="Waternetlijn onderste aquifer",
-        #             scenario_index=ds.current_scenario_index,
-        #             stage_index=ds.current_stage_index,
-        #         )
-        #     else:  # SCENARIO 1A and 2A - sand on clay / clay on clay
-        #         x_embankment_top_water_side = ds.get_characteristic_point(
-        #             CharacteristicPointType.EMBANKEMENT_TOP_WATER_SIDE
-        #         ).x
-        #         phi2_embankment_top_waterside = f_phi2(
-        #             x_embankment_top_water_side,
-        #             self.hydraulic_head_pl2_inward,
-        #             self.hydraulic_head_pl2_outward,
-        #             ds.left,
-        #             ds.right,
-        #         )
-        #         C1A_PL3 = [
-        #             x_embankment_top_water_side,
-        #             f_phi34(
-        #                 self.river_level_mhw,
-        #                 self.river_level_ghw,
-        #                 self.outward_leakage_length_pl3,
-        #                 self.inward_leakage_length_pl3,
-        #                 phi2_embankment_top_waterside,
-        #             ),
-        #         ]
-        #         if self.aquifer_inside_aquitard_label is not None:
-        #             C1A_PL4 = [
-        #                 x_embankment_top_water_side,
-        #                 f_phi34(
-        #                     self.river_level_mhw,
-        #                     self.river_level_ghw,
-        #                     self.outward_leakage_length_pl4,
-        #                     self.inward_leakage_length_pl4,
-        #                     phi2_embankment_top_waterside,
-        #                 ),
-        #             ]
+    #     A1B = [ds.left, self.river_level_mhw]
+    #     B1B = [
+    #         ds.get_characteristic_point(
+    #             CharacteristicPointType.EMBANKEMENT_TOE_WATER_SIDE
+    #         ).x,
+    #         self.river_level_mhw,
+    #     ]
 
-        #         # NOTE phi3_crest_out = C1A_PL3[1]
-        #         #      phi4_crest_out = C1A_PL4[1]
-        #         if not self.adjust_for_uplift:
-        #             x_embankment_toe_land_side = ds.get_characteristic_point(
-        #                 CharacteristicPointType.EMBANKEMENT_TOE_LAND_SIDE
-        #             ).x
-        #             phi2_crest_out = f_phi2(
-        #                 x_embankment_top_water_side,
-        #                 self.hydraulic_head_pl2_inward,
-        #                 self.hydraulic_head_pl2_outward,
-        #                 ds.left,
-        #                 ds.right,
-        #             )
-        #             phi_2_embankment_toe_land_side = f_phi2(
-        #                 x_embankment_toe_land_side,
-        #                 self.hydraulic_head_pl2_inward,
-        #                 self.hydraulic_head_pl2_outward,
-        #                 ds.left,
-        #                 ds.right,
-        #             )
-        #             dx = x_embankment_toe_land_side - x_embankment_top_water_side
-        #             z_d1a = phi_2_embankment_toe_land_side + (
-        #                 C1A_PL3[1] - phi2_crest_out
-        #             ) * exp(-dx / self.inward_leakage_length_pl3)
-        #             D1A = [x_embankment_toe_land_side, z_d1a]
+    #     # SCENARIO 1B - Clay on sand
+    #     if ds.material_layout == MaterialLayoutType.CLAY_EMBANKEMENT_ON_SAND:
+    #         D1B = (Ex, ds.z_at(Ex))
+    #         G1B = (ds.right, D1B[1])
 
-        #             if self.aquifer_inside_aquitard_label is not None:
-        #                 z_d2a = phi_2_embankment_toe_land_side + (
-        #                     C1A_PL3[1] - phi2_crest_out
-        #                 ) * exp(-dx / self.inward_leakage_length_pl4)
-        #                 D2A = [x_embankment_toe_land_side, z_d2a]
+    #         pl3_id = ds.model.add_head_line(
+    #             points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, D1B, G1B]],
+    #             label="Stijghoogtelijn 3 (PL3)",
+    #             scenario_index=ds.current_scenario_index,
+    #             stage_index=ds.current_stage_index,
+    #         )
 
-        #             dx = ds.right - x_embankment_top_water_side
-        #             z_g1a = phi_2_embankment_toe_land_side + (
-        #                 C1A_PL3[1] - phi2_crest_out
-        #             ) * exp(-dx / self.inward_leakage_length_pl3)
-        #             G1A = [ds.right, z_g1a]
+    #         ds.model.add_reference_line(
+    #             points=[Point(x=p[0], z=p[1]) for p in aquifer_points],
+    #             bottom_headline_id=pl3_id,
+    #             top_head_line_id=pl3_id,
+    #             label="Waternetlijn onderste aquifer",
+    #             scenario_index=ds.current_scenario_index,
+    #             stage_index=ds.current_stage_index,
+    #         )
+    #     else:  # SCENARIO 1A and 2A - sand on clay / clay on clay
+    #         x_embankment_top_water_side = ds.get_characteristic_point(
+    #             CharacteristicPointType.EMBANKEMENT_TOP_WATER_SIDE
+    #         ).x
+    #         phi2_embankment_top_waterside = f_phi2(
+    #             x_embankment_top_water_side,
+    #             self.hydraulic_head_pl2_inward,
+    #             self.hydraulic_head_pl2_outward,
+    #             ds.left,
+    #             ds.right,
+    #         )
+    #         C1A_PL3 = [
+    #             x_embankment_top_water_side,
+    #             f_phi34(
+    #                 self.river_level_mhw,
+    #                 self.river_level_ghw,
+    #                 self.outward_leakage_length_pl3,
+    #                 self.inward_leakage_length_pl3,
+    #                 phi2_embankment_top_waterside,
+    #             ),
+    #         ]
+    #         if self.aquifer_inside_aquitard_label is not None:
+    #             C1A_PL4 = [
+    #                 x_embankment_top_water_side,
+    #                 f_phi34(
+    #                     self.river_level_mhw,
+    #                     self.river_level_ghw,
+    #                     self.outward_leakage_length_pl4,
+    #                     self.inward_leakage_length_pl4,
+    #                     phi2_embankment_top_waterside,
+    #                 ),
+    #             ]
 
-        #             if self.aquifer_inside_aquitard_label is not None:
-        #                 z_g2a = phi_2_embankment_toe_land_side + (
-        #                     C1A_PL3[1] - phi2_crest_out
-        #                 ) * exp(-dx / self.inward_leakage_length_pl4)
-        #                 G2A = [ds.right, z_g2a]
+    #         # NOTE phi3_crest_out = C1A_PL3[1]
+    #         #      phi4_crest_out = C1A_PL4[1]
+    #         if not self.adjust_for_uplift:
+    #             x_embankment_toe_land_side = ds.get_characteristic_point(
+    #                 CharacteristicPointType.EMBANKEMENT_TOE_LAND_SIDE
+    #             ).x
+    #             phi2_crest_out = f_phi2(
+    #                 x_embankment_top_water_side,
+    #                 self.hydraulic_head_pl2_inward,
+    #                 self.hydraulic_head_pl2_outward,
+    #                 ds.left,
+    #                 ds.right,
+    #             )
+    #             phi_2_embankment_toe_land_side = f_phi2(
+    #                 x_embankment_toe_land_side,
+    #                 self.hydraulic_head_pl2_inward,
+    #                 self.hydraulic_head_pl2_outward,
+    #                 ds.left,
+    #                 ds.right,
+    #             )
+    #             dx = x_embankment_toe_land_side - x_embankment_top_water_side
+    #             z_d1a = phi_2_embankment_toe_land_side + (
+    #                 C1A_PL3[1] - phi2_crest_out
+    #             ) * exp(-dx / self.inward_leakage_length_pl3)
+    #             D1A = [x_embankment_toe_land_side, z_d1a]
 
-        #             pl3_id = ds.model.add_head_line(
-        #                 points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL3, D1A, G1A]],
-        #                 label="Stijghoogtelijn 3 (PL3)",
-        #                 scenario_index=ds.current_scenario_index,
-        #                 stage_index=ds.current_stage_index,
-        #             )
+    #             if self.aquifer_inside_aquitard_label is not None:
+    #                 z_d2a = phi_2_embankment_toe_land_side + (
+    #                     C1A_PL3[1] - phi2_crest_out
+    #                 ) * exp(-dx / self.inward_leakage_length_pl4)
+    #                 D2A = [x_embankment_toe_land_side, z_d2a]
 
-        #             ds.model.add_reference_line(
-        #                 points=[Point(x=p[0], z=p[1]) for p in aquifer_points],
-        #                 bottom_headline_id=pl3_id,
-        #                 top_head_line_id=pl3_id,
-        #                 label="Waternetlijn onderste aquifer",
-        #                 scenario_index=ds.current_scenario_index,
-        #                 stage_index=ds.current_stage_index,
-        #             )
-        #             if self.aquifer_inside_aquitard_label is not None:
-        #                 pl4_id = ds.model.add_head_line(
-        #                     points=[
-        #                         Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL4, D2A, G2A]
-        #                     ],
-        #                     label="Stijghoogtelijn 4 (PL4)",
-        #                     scenario_index=ds.current_scenario_index,
-        #                     stage_index=ds.current_stage_index,
-        #                 )
-        #                 # add referenceline but where...
+    #             dx = ds.right - x_embankment_top_water_side
+    #             z_g1a = phi_2_embankment_toe_land_side + (
+    #                 C1A_PL3[1] - phi2_crest_out
+    #             ) * exp(-dx / self.inward_leakage_length_pl3)
+    #             G1A = [ds.right, z_g1a]
 
-        #         else:
-        #             raise NotImplementedError(
-        #                 "Scenario with correction for uplift not yet implemented!"
-        #             )
+    #             if self.aquifer_inside_aquitard_label is not None:
+    #                 z_g2a = phi_2_embankment_toe_land_side + (
+    #                     C1A_PL3[1] - phi2_crest_out
+    #                 ) * exp(-dx / self.inward_leakage_length_pl4)
+    #                 G2A = [ds.right, z_g2a]
 
-        #     ########
-        #     # PL 4 #
-        #     ########
+    #             pl3_id = ds.model.add_head_line(
+    #                 points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL3, D1A, G1A]],
+    #                 label="Stijghoogtelijn 3 (PL3)",
+    #                 scenario_index=ds.current_scenario_index,
+    #                 stage_index=ds.current_stage_index,
+    #             )
 
-        #     # There is only a PL4 if we have a aquifer inside aquitard label
+    #             ds.model.add_reference_line(
+    #                 points=[Point(x=p[0], z=p[1]) for p in aquifer_points],
+    #                 bottom_headline_id=pl3_id,
+    #                 top_head_line_id=pl3_id,
+    #                 label="Waternetlijn onderste aquifer",
+    #                 scenario_index=ds.current_scenario_index,
+    #                 stage_index=ds.current_stage_index,
+    #             )
+    #             if self.aquifer_inside_aquitard_label is not None:
+    #                 pl4_id = ds.model.add_head_line(
+    #                     points=[
+    #                         Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL4, D2A, G2A]
+    #                     ],
+    #                     label="Stijghoogtelijn 4 (PL4)",
+    #                     scenario_index=ds.current_scenario_index,
+    #                     stage_index=ds.current_stage_index,
+    #                 )
+    #                 # add referenceline but where...
 
-        return ds
+    #         else:
+    #             raise NotImplementedError(
+    #                 "Scenario with correction for uplift not yet implemented!"
+    #             )
+
+    #     ########
+    #     # PL 4 #
+    #     ########
+
+    #     # There is only a PL4 if we have a aquifer inside aquitard label
+
+    # return ds
 
     def has_result(
         self,
@@ -1041,7 +1051,7 @@ class DStabilityModel(BaseModel):
         wncs_id = (
             self.scenarios[scenario_index].Stages[stage_index].WaternetCreatorSettingsId
         )
-        for wncs in self.waternetcreatorsettings:
+        for wncs in self.datastructure.waternetcreatorsettings:
             if wncs.Id == wncs_id:
                 return wncs
 
