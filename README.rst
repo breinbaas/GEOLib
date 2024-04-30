@@ -29,11 +29,39 @@ limits of the selected scenario / stage
 .. code-block:: python
 
     dm = DStabilityModel()
-    dm.parse(stix_file)
+    ...
     print(dm.zmax, dm.zmin, dm.xmax, dm.xmin)
 
+* Get a dictionary with layer / soil information
 
+It can be pretty useful to know which layer contains which soil. That's now possible using the layer_soil_dict property.
+This dictionary contains the layerId as key and the soil as a value.
 
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    print(dm.layer_soil_dict)
+
+* Identify a layer at a given point
+
+It is possible to get a layer from a given point.
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.layer_at(x=0.0, z=-10.0)
+
+* Get soil layer intersection at a given x coordinate
+
+Use the next function to get a list of layers from top to bottom that intersect at a given x coordinate
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.layer_intersections_at(0.0)
 
 Installation
 ------------

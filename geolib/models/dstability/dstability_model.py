@@ -200,6 +200,10 @@ class DStabilityModel(BaseModel):
                             result[layer.Id] = soil
         return result
 
+    def layer_at(self, x: float, z: float) -> Optional[PersistableLayer]:
+        geometry = self._get_geometry(self.current_scenario, self.current_stage)
+        return geometry.layer_at(x, z)
+
     def has_result(
         self,
         scenario_index: Optional[int] = None,
