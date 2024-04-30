@@ -8,6 +8,8 @@ from enum import Enum
 from itertools import chain
 from math import isfinite
 from typing import Dict, List, Optional, Set, Tuple, Union
+from shapely import Polygon
+from shapely import Point as ShapelyPoint
 
 from pydantic import ValidationError, conlist, root_validator, validator
 
@@ -18,6 +20,7 @@ from geolib.soils import Soil
 
 from .dstability_validator import DStabilityValidator
 from .utils import children
+from ...utils import polyline_polyline_intersections
 
 
 class DStabilityBaseModelStructure(BaseModelStructure):
@@ -208,13 +211,13 @@ class WaternetCreatorSettings(DStabilitySubStructure):
     AquitardHeadLandSide: Optional[Union[float, str]] = "NaN"
     AquitardHeadWaterSide: Optional[Union[float, str]] = "NaN"
     ContentVersion: Optional[str] = "2"
-    DitchCharacteristics: Optional[
-        PersistableDitchCharacteristics
-    ] = PersistableDitchCharacteristics()
+    DitchCharacteristics: Optional[PersistableDitchCharacteristics] = (
+        PersistableDitchCharacteristics()
+    )
     DrainageConstruction: Optional[PersistablePoint] = PersistablePoint()
-    EmbankmentCharacteristics: Optional[
-        PersistableEmbankmentCharacteristics
-    ] = PersistableEmbankmentCharacteristics()
+    EmbankmentCharacteristics: Optional[PersistableEmbankmentCharacteristics] = (
+        PersistableEmbankmentCharacteristics()
+    )
     EmbankmentSoilScenario: EmbankmentSoilScenarioEnum = (
         EmbankmentSoilScenarioEnum.CLAY_EMBANKMENT_ON_CLAY
     )
@@ -595,18 +598,18 @@ class PersistableSoil(DStabilityBaseModelStructure):
     IsProbabilistic: bool = False
     Name: Optional[str] = ""
     Notes: Optional[str] = ""
-    ShearStrengthModelTypeAbovePhreaticLevel: ShearStrengthModelTypePhreaticLevelInternal = (
-        ShearStrengthModelTypePhreaticLevelInternal.MOHR_COULOMB_ADVANCED
-    )
-    ShearStrengthModelTypeBelowPhreaticLevel: ShearStrengthModelTypePhreaticLevelInternal = (
-        ShearStrengthModelTypePhreaticLevelInternal.SU
-    )
-    MohrCoulombClassicShearStrengthModel: PersistableMohrCoulombClassicShearStrengthModel = (
-        PersistableMohrCoulombClassicShearStrengthModel()
-    )
-    MohrCoulombAdvancedShearStrengthModel: PersistableMohrCoulombAdvancedShearStrengthModel = (
-        PersistableMohrCoulombAdvancedShearStrengthModel()
-    )
+    ShearStrengthModelTypeAbovePhreaticLevel: (
+        ShearStrengthModelTypePhreaticLevelInternal
+    ) = ShearStrengthModelTypePhreaticLevelInternal.MOHR_COULOMB_ADVANCED
+    ShearStrengthModelTypeBelowPhreaticLevel: (
+        ShearStrengthModelTypePhreaticLevelInternal
+    ) = ShearStrengthModelTypePhreaticLevelInternal.SU
+    MohrCoulombClassicShearStrengthModel: (
+        PersistableMohrCoulombClassicShearStrengthModel
+    ) = PersistableMohrCoulombClassicShearStrengthModel()
+    MohrCoulombAdvancedShearStrengthModel: (
+        PersistableMohrCoulombAdvancedShearStrengthModel
+    ) = PersistableMohrCoulombAdvancedShearStrengthModel()
     SuShearStrengthModel: PersistableSuShearStrengthModel = (
         PersistableSuShearStrengthModel()
     )
@@ -1020,9 +1023,9 @@ class NailProperties(DStabilitySubStructure):
     """nailpropertiesforsoils.json"""
 
     ContentVersion: Optional[str] = "2"
-    NailPropertiesForSoils: Optional[
-        List[Optional[PersistableNailPropertiesForSoil]]
-    ] = []
+    NailPropertiesForSoils: Optional[List[Optional[PersistableNailPropertiesForSoil]]] = (
+        []
+    )
 
     @classmethod
     def structure_name(cls) -> str:
@@ -1146,6 +1149,9 @@ class PersistableLayer(DStabilityBaseModelStructure):
         # 4. does it intersect other polygons
         return points
 
+    def to_shapely_polygon(self) -> Polygon:
+        return Polygon([(p.X, p.Z) for p in self.Points])
+
 
 class Geometry(DStabilitySubStructure):
     """geometries/geometry_x.json"""
@@ -1157,6 +1163,22 @@ class Geometry(DStabilitySubStructure):
     ContentVersion: Optional[str] = "2"
     Id: Optional[str]
     Layers: List[PersistableLayer] = []
+
+    @property
+    def zmax(self):
+        return max([p[1] for p in self._get_all_points()])
+
+    @property
+    def zmin(self):
+        return min([p[1] for p in self._get_all_points()])
+
+    @property
+    def xmax(self):
+        return max([p[0] for p in self._get_all_points()])
+
+    @property
+    def xmin(self):
+        return min([p[0] for p in self._get_all_points()])
 
     def contains_point(self, point: Point) -> bool:
         """
@@ -1177,6 +1199,41 @@ class Geometry(DStabilitySubStructure):
                     return True
 
         return False
+
+    def layer_at(self, x: float, z: float) -> Optional[PersistableLayer]:
+        p = ShapelyPoint(x, z)
+        for layer in self.Layers:
+            pg = layer.to_shapely_polygon()
+            if pg.contains(p):
+                return layer
+        return None
+
+    def layer_intersections_at(self, x: float, layer_soil_dict: Dict) -> Dict:
+        result = []
+        line_points = [(x, self.zmax + 0.01), (x, self.zmin - 0.01)]
+        for layer in self.Layers:
+            layer_points = [(p.X, p.Z) for p in layer.Points]
+            for intersection in polyline_polyline_intersections(
+                line_points, layer_points
+            ):
+                result.append(intersection[1])
+
+        result = sorted(
+            list(set(result)), reverse=True
+        )  # sort top to bottom and remove duplicates
+
+        # now remove the intersection with no height
+        final_result = []
+        for i in range(1, len(result)):
+            top = result[i - 1]
+            bottom = result[i]
+            layer = self.layer_at(x=x, z=(top + bottom) / 2.0)
+            final_result.append((top, bottom, layer.Id))
+
+        # convert ids to soil references
+        final_result = [(e[0], e[1], layer_soil_dict[e[2]]) for e in final_result]
+
+        return final_result
 
     def get_layer(self, id: int) -> PersistableLayer:
         for layer in self.Layers:
@@ -1212,6 +1269,12 @@ class Geometry(DStabilitySubStructure):
 
         self.Layers.append(layer)
         return layer
+
+    def _get_all_points(self) -> List[Tuple[float, float]]:
+        points = []
+        for layer in self.Layers:
+            points += [(p.X, p.Z) for p in layer.Points]
+        return points
 
 
 class PersistableElevation(DStabilityBaseModelStructure):
@@ -1292,13 +1355,13 @@ class PersistableTangentLines(DStabilityBaseModelStructure):
 
 
 class PersistableBishopBruteForceSettings(DStabilityBaseModelStructure):
-    GridEnhancements: Optional[
-        PersistableGridEnhancements
-    ] = PersistableGridEnhancements()
+    GridEnhancements: Optional[PersistableGridEnhancements] = (
+        PersistableGridEnhancements()
+    )
     SearchGrid: Optional[PersistableSearchGrid] = PersistableSearchGrid()
-    SlipPlaneConstraints: Optional[
-        PersistableSlipPlaneConstraints
-    ] = PersistableSlipPlaneConstraints()
+    SlipPlaneConstraints: Optional[PersistableSlipPlaneConstraints] = (
+        PersistableSlipPlaneConstraints()
+    )
     TangentLines: Optional[PersistableTangentLines] = PersistableTangentLines()
 
 
@@ -1322,9 +1385,9 @@ class PersistableSpencerSettings(DStabilityBaseModelStructure):
     Label: Optional[str] = ""
     Notes: Optional[str] = ""
     SlipPlane: Optional[List[Optional[PersistablePoint]]] = None
-    SlipPlaneConstraints: Optional[
-        PersistableGeneticSlipPlaneConstraints
-    ] = PersistableGeneticSlipPlaneConstraints()
+    SlipPlaneConstraints: Optional[PersistableGeneticSlipPlaneConstraints] = (
+        PersistableGeneticSlipPlaneConstraints()
+    )
 
 
 class OptionsTypeEnum(Enum):
@@ -1341,9 +1404,9 @@ class PersistableSpencerGeneticSettings(DStabilityBaseModelStructure):
     OptionsType: Optional[OptionsTypeEnum] = OptionsType.DEFAULT
     SlipPlaneA: Optional[List[Optional[PersistablePoint]]] = None
     SlipPlaneB: Optional[List[Optional[PersistablePoint]]] = None
-    SlipPlaneConstraints: Optional[
-        PersistableGeneticSlipPlaneConstraints
-    ] = PersistableGeneticSlipPlaneConstraints()
+    SlipPlaneConstraints: Optional[PersistableGeneticSlipPlaneConstraints] = (
+        PersistableGeneticSlipPlaneConstraints()
+    )
 
 
 class PersistableTwoCirclesOnTangentLine(DStabilityBaseModelStructure):
@@ -1355,9 +1418,9 @@ class PersistableTwoCirclesOnTangentLine(DStabilityBaseModelStructure):
 class PersistableUpliftVanSettings(DStabilityBaseModelStructure):
     Label: Optional[str] = ""
     Notes: Optional[str] = ""
-    SlipPlane: Optional[
-        PersistableTwoCirclesOnTangentLine
-    ] = PersistableTwoCirclesOnTangentLine()
+    SlipPlane: Optional[PersistableTwoCirclesOnTangentLine] = (
+        PersistableTwoCirclesOnTangentLine()
+    )
 
 
 class PersistableSearchArea(DStabilityBaseModelStructure):
@@ -1381,9 +1444,9 @@ class PersistableUpliftVanParticleSwarmSettings(DStabilityBaseModelStructure):
     OptionsType: Optional[OptionsTypeEnum] = OptionsType.DEFAULT
     SearchAreaA: Optional[PersistableSearchArea] = PersistableSearchArea()
     SearchAreaB: Optional[PersistableSearchArea] = PersistableSearchArea()
-    SlipPlaneConstraints: Optional[
-        PersistableSlipPlaneConstraints
-    ] = PersistableSlipPlaneConstraints()
+    SlipPlaneConstraints: Optional[PersistableSlipPlaneConstraints] = (
+        PersistableSlipPlaneConstraints()
+    )
     TangentArea: Optional[PersistableTangentArea] = PersistableTangentArea()
 
 
@@ -1392,22 +1455,22 @@ class CalculationSettings(DStabilitySubStructure):
 
     AnalysisType: Optional[AnalysisTypeEnum] = AnalysisTypeEnum.BISHOP_BRUTE_FORCE
     Bishop: Optional[PersistableBishopSettings] = PersistableBishopSettings()
-    BishopBruteForce: Optional[
-        PersistableBishopBruteForceSettings
-    ] = PersistableBishopBruteForceSettings()
+    BishopBruteForce: Optional[PersistableBishopBruteForceSettings] = (
+        PersistableBishopBruteForceSettings()
+    )
     CalculationType: Optional[CalculationTypeEnum] = CalculationTypeEnum.DETERMINISTIC
     ContentVersion: Optional[str] = "2"
     Id: Optional[str] = "19"
     ModelFactorMean: Optional[float] = 1.05
     ModelFactorStandardDeviation: Optional[float] = 0.033
     Spencer: Optional[PersistableSpencerSettings] = PersistableSpencerSettings()
-    SpencerGenetic: Optional[
-        PersistableSpencerGeneticSettings
-    ] = PersistableSpencerGeneticSettings()
+    SpencerGenetic: Optional[PersistableSpencerGeneticSettings] = (
+        PersistableSpencerGeneticSettings()
+    )
     UpliftVan: Optional[PersistableUpliftVanSettings] = PersistableUpliftVanSettings()
-    UpliftVanParticleSwarm: Optional[
-        PersistableUpliftVanParticleSwarmSettings
-    ] = PersistableUpliftVanParticleSwarmSettings()
+    UpliftVanParticleSwarm: Optional[PersistableUpliftVanParticleSwarmSettings] = (
+        PersistableUpliftVanParticleSwarmSettings()
+    )
 
     def set_bishop(self, bishop_settings: PersistableBishopSettings) -> None:
         self.Bishop = bishop_settings
@@ -1896,8 +1959,6 @@ class UpliftVanParticleSwarmReliabilityResult(DStabilitySubStructure):
         List[Optional[PersistableStatePointContribution]]
     ] = None
     TangentLine: Optional[float] = None
-    
-    
 
     @classmethod
     def structure_group(cls) -> str:

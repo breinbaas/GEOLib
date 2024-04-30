@@ -7,7 +7,8 @@ import logging
 import re
 from collections import namedtuple
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Tuple
+from shapely import LineString, MultiPoint, Point
 
 from pydantic import validator
 
@@ -50,3 +51,33 @@ def make_newline_validator(*field_name: str, req_newlines: int = 2):
         return v
 
     return validator(*field_name, allow_reuse=True)(field_must_contain_newlines)
+
+
+def polyline_polyline_intersections(
+    points_line1: List[Tuple[float, float]],
+    points_line2: List[Tuple[float, float]],
+) -> List[Tuple[float, float]]:
+    result = []
+    ls1 = LineString(points_line1)
+    ls2 = LineString(points_line2)
+    intersections = ls1.intersection(ls2)
+
+    if intersections.is_empty:
+        final_result = []
+    elif type(intersections) == MultiPoint:
+        result = [(g.x, g.y) for g in intersections.geoms]
+    elif type(intersections) == Point:
+        x, y = intersections.coords.xy
+        result.append((x[0], y[0]))
+    elif intersections.is_empty:
+        return []
+    else:
+        raise ValueError(f"Unimplemented intersection type '{type(intersections)}'")
+
+    # do not include points that are on line1 or line2
+    final_result = [p for p in result if not p in points_line1 or p in points_line2]
+
+    if len(final_result) == 0:
+        return []
+
+    return sorted(final_result, key=lambda x: x[0])

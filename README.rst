@@ -3,6 +3,38 @@ GEOLib
 
 GEOLib is a Python package to generate, execute and parse several D-Serie and D-GEO Suite numerical models.
 
+What's different with this fork
+-------------------------------
+
+This fork is maintained by Rob van Putten aka Breinbaas aka LeveeLogic and contains extra functionality
+mostly for DStability which makes it easier to access or use geolib for levee assessments. The following
+extras are implemented;
+
+* Automatic upgrade of older stix files
+
+If you parse an old stix file the migration console will be called to upgrade the file. Note that you
+will need to add the DSTABILITY_MIGRATION_CONSOLE_PATH keyword to the geolib.env file. See the geolib.env
+for an example.
+
+* Use string or Path as the parse parameter
+
+It is possible to call the parse method of the DStabilityModel with a string as parameters which 
+saves you the code to convert the argument to a Path.
+
+* Get the geometry limits
+
+The xmin, xmax, zmin, zmax properties are added to the DStabilityModel which refer to the geometry
+limits of the selected scenario / stage
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    dm.parse(stix_file)
+    print(dm.zmax, dm.zmin, dm.xmax, dm.xmin)
+
+
+
+
 Installation
 ------------
 

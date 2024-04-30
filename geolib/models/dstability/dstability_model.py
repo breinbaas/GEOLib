@@ -2,7 +2,7 @@ import abc
 from enum import Enum
 from pathlib import Path
 import logging
-from typing import BinaryIO, List, Optional, Set, Type, Union
+from typing import BinaryIO, List, Optional, Set, Type, Union, Dict
 
 import matplotlib.pyplot as plt
 from pydantic import DirectoryPath, FilePath
@@ -23,6 +23,7 @@ from .internal import (
     CalculationSettings,
     DStabilityResult,
     DStabilityStructure,
+    Geometry,
     PersistableLayer,
     PersistablePoint,
     PersistableSoil,
@@ -107,6 +108,26 @@ class DStabilityModel(BaseModel):
     def soil_correlations(self) -> SoilCorrelation:
         return self.datastructure.soilcorrelation
 
+    @property
+    def zmax(self) -> float:
+        geometry = self._get_geometry(self.current_scenario, self.current_stage)
+        return geometry.zmax
+
+    @property
+    def zmin(self) -> float:
+        geometry = self._get_geometry(self.current_scenario, self.current_stage)
+        return geometry.zmin
+
+    @property
+    def xmax(self) -> float:
+        geometry = self._get_geometry(self.current_scenario, self.current_stage)
+        return geometry.xmax
+
+    @property
+    def xmin(self) -> float:
+        geometry = self._get_geometry(self.current_scenario, self.current_stage)
+        return geometry.xmin
+
     def _get_next_id(self) -> int:
         self.current_id += 1
         return self.current_id
@@ -165,6 +186,19 @@ class DStabilityModel(BaseModel):
                 )
 
         return all_results
+
+    @property
+    def layer_soil_dict(self) -> Dict:
+        result = {}
+        for layer in self._get_geometry(self.current_scenario, self.current_stage).Layers:
+            for soillayer in self._get_soil_layers(
+                self.current_scenario, self.current_stage
+            ).SoilLayers:
+                if layer.Id == soillayer.LayerId:
+                    for soil in self.soils.Soils:
+                        if soil.Id == soillayer.SoilId:
+                            result[layer.Id] = soil
+        return result
 
     def has_result(
         self,
@@ -303,7 +337,11 @@ class DStabilityModel(BaseModel):
         result = self._get_result_substructure(scenario_index, calculation_index)
         return result.get_slipplane_output()
 
-    def _get_geometry(self, scenario_index: int, stage_index: int):
+    def layer_intersections_at(self, x: float):
+        geometry = self._get_geometry(self.current_scenario, self.current_stage)
+        return geometry.layer_intersections_at(x, self.layer_soil_dict)
+
+    def _get_geometry(self, scenario_index: int, stage_index: int) -> Geometry:
         geometry_id = (
             self.datastructure.scenarios[scenario_index].Stages[stage_index].GeometryId
         )
@@ -557,6 +595,9 @@ class DStabilityModel(BaseModel):
         soil = self.soils.get_soil(soil_code)
         soil_layers.add_soillayer(layer_id=new_layer.Id, soil_id=soil.Id)
         return int(new_layer.Id)
+
+    # def get_layers(self, x: float) -> Dict:
+    #    ls = LineString((x,self.))
 
     def make_points_valid(self, points: List[Point]) -> List[PersistablePoint]:
         valid_points = make_valid(self.geolib_points_to_shapely_polygon(points))
