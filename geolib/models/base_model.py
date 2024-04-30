@@ -133,7 +133,7 @@ class BaseModel(BaseDataClass, abc.ABC):
     @property
     def default_console_path(self) -> Path:
         raise NotImplementedError("Implement in concrete classes.")
-    
+
     @property
     def custom_console_path(self) -> Optional[Path]:
         return None
@@ -158,8 +158,10 @@ class BaseModel(BaseDataClass, abc.ABC):
         """
         raise NotImplementedError("Implement in concrete classes.")
 
-    def parse(self, filename: FilePath) -> BaseModelStructure:
+    def parse(self, filename: Union[FilePath, str]) -> BaseModelStructure:
         """Parse input or outputfile to Model, depending on extension."""
+        if type(filename) == str:
+            filename = Path(filename)
         self.filename = filename
         # self.datastructure = None
         self.datastructure = self.parser_provider_type().parse(filename)
@@ -186,20 +188,21 @@ class BaseModel(BaseDataClass, abc.ABC):
         Requires a successful execute.
         """
         return self.datastructure.results
-    
+
     def get_meta_property(self, key: str) -> Optional[str]:
         """Get a metadata property from the input file."""
         if hasattr(meta, key):
             return meta.__getattribute__(key)
         else:
             return None
-        
+
     def set_meta_property(self, key: str, value: str) -> None:
         """Set a metadata property from the input file."""
         if hasattr(meta, key):
             meta.__setattr__(key, value)
         else:
             raise ValueError(f"Metadata property {key} does not exist.")
+
 
 class BaseModelList(BaseDataClass):
     """Hold multiple models that can be executed in parallel.
