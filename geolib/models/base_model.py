@@ -163,7 +163,6 @@ class BaseModel(BaseDataClass, abc.ABC):
         if type(filename) == str:
             filename = Path(filename)
         self.filename = filename
-        # self.datastructure = None
         self.datastructure = self.parser_provider_type().parse(filename)
         return self.datastructure
 

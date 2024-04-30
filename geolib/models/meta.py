@@ -10,6 +10,7 @@ such as an compute endpoint.
     Make a mapping between the possible metadata options and names for each model.
 
 """
+
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -46,11 +47,12 @@ class MetaData(BaseSettings):
     # For calculations
     console_folder: DirectoryPath = Path(".")
     dstability_console_path: Optional[Path] = None
+    dstability_migration_console_path: Optional[Path] = None
     dgeoflow_console_path: Optional[Path] = None
     dsheetpiling_console_path: Optional[Path] = None
     dsettlement_console_path: Optional[Path] = None
     dfoundations_console_path: Optional[Path] = None
-    
+
     timeout: int = 10 * 60  # in seconds, so 10 minutes
 
     # For multiple calculations

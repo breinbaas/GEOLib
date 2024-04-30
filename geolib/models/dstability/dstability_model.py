@@ -1,6 +1,7 @@
 import abc
 from enum import Enum
 from pathlib import Path
+import logging
 from typing import BinaryIO, List, Optional, Set, Type, Union
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from pydantic import DirectoryPath, FilePath
 from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import polygonize
 from shapely.validation import make_valid
+import subprocess
 
 from geolib.geometry import Point
 from geolib.models import BaseModel
@@ -39,6 +41,11 @@ from .loads import Consolidation, DStabilityLoad
 from .reinforcements import DStabilityReinforcement
 from .serializer import DStabilityInputSerializer, DStabilityInputZipSerializer
 from .states import DStabilityStateLinePoint, DStabilityStatePoint
+from ..meta import MetaData
+from ...errors import CalculationError
+
+logger = logging.getLogger(__name__)
+meta = MetaData()
 
 
 class DStabilityCalculationType(Enum):
@@ -90,7 +97,7 @@ class DStabilityModel(BaseModel):
     @property
     def custom_console_path(self) -> Path:
         return self.get_meta_property("dstability_console_path")
-    
+
     @property
     def soils(self) -> SoilCollection:
         """Enables easy access to the soil in the internal dict-like datastructure. Also enables edit/delete for individual soils."""
@@ -105,7 +112,28 @@ class DStabilityModel(BaseModel):
         return self.current_id
 
     def parse(self, *args, **kwargs):
-        super().parse(*args, **kwargs)
+        try:
+            super().parse(*args, **kwargs)
+        except ValueError as e:
+            if e.args[0] == "Can't listdir a file":
+                executable = meta.dstability_migration_console_path
+                if not executable.exists():
+                    logger.error(
+                        f"The path to the dstability migration console (geolib.env) is not set or invalid`{executable}`, cannot auto convert this file"
+                    )
+                    raise CalculationError(
+                        -1,
+                        f"DStability Migration Console executable not set or not found at {executable}.",
+                    )
+                try:
+                    subprocess.run([executable, self.filename, self.filename])
+                    self.parse(self.filename)
+                except Exception as e:
+                    logger.error(
+                        f"Error running the migration console on this file; '{e}'"
+                    )
+                    raise CalculationError(f"Cannot open stix file, got error '{e}'")
+
         self.current_id = self.datastructure.get_unique_id()
 
     @property
@@ -567,12 +595,12 @@ class DStabilityModel(BaseModel):
                 linestring1, linestring2 = self.connect_layers(layer, new_layer)
 
                 # Update the points of the layers
-                current_layers[
-                    current_layers.index(layer)
-                ].Points = self.to_dstability_points(linestring1)
-                current_layers[
-                    current_layers.index(new_layer)
-                ].Points = self.to_dstability_points(linestring2)
+                current_layers[current_layers.index(layer)].Points = (
+                    self.to_dstability_points(linestring1)
+                )
+                current_layers[current_layers.index(new_layer)].Points = (
+                    self.to_dstability_points(linestring2)
+                )
 
     def to_shapely_linestring(self, points: List[PersistablePoint]) -> LineString:
         converted_points = [(p.X, p.Z) for p in points]
