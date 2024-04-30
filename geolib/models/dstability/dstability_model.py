@@ -230,8 +230,29 @@ class DStabilityModel(BaseModel):
         geometry = self._get_geometry(self.current_scenario, self.current_stage)
         return geometry.layer_at(x, z)
 
-    def z_at(self, x: float) -> Optional[float]:
-        pass
+    def z_at(
+        self, x: float, highest_only: bool = True
+    ) -> Optional[Union[float, List[float]]]:
+        """Get a list of z coordinates from intersections with the soillayers on coordinate x
+
+        Args:
+            x (_type_): The x coordinate
+            highest_only (bool): Only return the topmost point. Defaults to True
+
+        Returns:
+            List[float]: A list of intersections sorted from high to low or only the highest point if highest_only is True
+        """
+        intersections = self.layer_intersections_at(x)
+
+        if len(intersections) > 0:
+            if highest_only:
+                return intersections[0][0]
+            else:
+                return sorted(
+                    [i[0] for i in intersections] + [intersections[-1][1]], reverse=True
+                )
+        else:
+            return None
 
     def get_characteristic_point(
         self, characteristic_point_type: CharacteristicPointEnum
@@ -971,7 +992,17 @@ class DStabilityModel(BaseModel):
         result = self._get_result_substructure(scenario_index, calculation_index)
         return result.get_slipplane_output()
 
-    def layer_intersections_at(self, x: float):
+    def layer_intersections_at(
+        self, x: float
+    ) -> List[Tuple[float, float, PersistableSoil]]:
+        """Get the intersection with the layers at the given x
+
+        Args:
+            x (float): The x coordinate
+
+        Returns:
+            List[Tuple[float, float, PersistableSoil]]: A list with top, bottom and soil tuples
+        """
         geometry = self._get_geometry(self.current_scenario, self.current_stage)
         return geometry.layer_intersections_at(x, self.layer_soil_dict)
 

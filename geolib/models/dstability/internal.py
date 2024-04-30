@@ -1268,7 +1268,18 @@ class Geometry(DStabilitySubStructure):
                 return layer
         return None
 
-    def layer_intersections_at(self, x: float, layer_soil_dict: Dict) -> Dict:
+    def layer_intersections_at(
+        self, x: float, layer_soil_dict: Dict
+    ) -> List[Tuple[float, float, PersistableSoil]]:
+        """Get the intersection with the layers at the given x
+
+        Args:
+            x (float): The x coordinate
+            layer_soil_dict (Dict): The dictionary to convert the layer id to the soil (DStabilityModel.layer_soil_dict)
+
+        Returns:
+            List[Tuple[float, float, PersistableSoil]]: A list with top, bottom and soil tuples
+        """
         result = []
         line_points = [(x, self.zmax + 0.01), (x, self.zmin - 0.01)]
         for layer in self.Layers:

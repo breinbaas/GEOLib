@@ -104,7 +104,16 @@ You can easily get the points that define the surface of the geometry as a list 
     dm = DStabilityModel()
     ...
     dm.surface 
-    
+
+* Get the z coordinate(s) at a given x coordinate
+
+Use the next function to get the intersection with the soillayers at the given x coordinate. You can choose to only return the highest intersection or all intersections from top to bottom
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.z_at(x=0, highest_only=False)
 
 Installation
 ------------
