@@ -4,12 +4,14 @@ The internal data model structure.
 
 from collections import defaultdict
 from datetime import date, datetime
-from enum import Enum
+from enum import Enum, IntEnum
 from itertools import chain
 from math import isfinite
 from typing import Dict, List, Optional, Set, Tuple, Union
 from shapely import Polygon
 from shapely import Point as ShapelyPoint
+from shapely.geometry.polygon import orient
+from shapely.ops import unary_union
 
 from pydantic import ValidationError, conlist, root_validator, validator
 
@@ -193,6 +195,20 @@ class PersistableEmbankmentCharacteristics(DStabilityBaseModelStructure):
     ShoulderBaseLandSide: Optional[Union[float, str]] = "NaN"
 
 
+class CharacteristicPointEnum(IntEnum):
+    NONE = 0
+
+    EMBANKEMENT_TOE_WATER_SIDE = 10
+    EMBANKEMENT_TOP_WATER_SIDE = 11
+    EMBANKEMENT_TOP_LAND_SIDE = 12
+    SHOULDER_BASE_LAND_SIDE = 13
+    EMBANKEMENT_TOE_LAND_SIDE = 14
+    DITCH_EMBANKEMENT_SIDE = 15
+    DITCH_BOTTOM_EMBANKEMENT_SIDE = 16
+    DITCH_BOTTOM_LAND_SIDE = 17
+    DITCH_LAND_SIDE = 18
+
+
 class EmbankmentSoilScenarioEnum(str, Enum):
     CLAY_EMBANKMENT_ON_CLAY = "ClayEmbankmentOnClay"
     CLAY_EMBANKMENT_ON_SAND = "ClayEmbankmentOnSand"
@@ -242,6 +258,12 @@ class WaternetCreatorSettings(DStabilitySubStructure):
     @classmethod
     def structure_group(cls) -> str:
         return "waternetcreatorsettings"
+
+    def get_x_characteristic_point_embankment(
+        self, point_type: PersistableEmbankmentCharacteristics
+    ) -> Optional[float]:
+        if point_type == PersistableEmbankmentCharacteristics.EmbankmentToeLandSide:
+            f = PersistableEmbankmentCharacteristics.EmbankmentToeLandSide
 
 
 class PersistableStochasticParameter(DStabilityBaseModelStructure):
@@ -1179,6 +1201,44 @@ class Geometry(DStabilitySubStructure):
     @property
     def xmin(self):
         return min([p[0] for p in self._get_all_points()])
+
+    @property
+    def surface(self) -> List[Tuple[float, float]]:
+        """Get the surfaceline of this geometry
+
+        Returns:
+            List[Tuple[float, float]]: The surface line as a list of x,z tuples
+        """
+        points, polygons = [], []
+        for layer in self.Layers:
+            points += [(float(p.X), float(p.Z)) for p in layer.Points]
+            polygons.append(Polygon([(float(p.X), float(p.Z)) for p in layer.Points]))
+
+        boundary = orient(unary_union(polygons), sign=-1)
+        boundary = [
+            (round(p[0], 3), round(p[1], 3))
+            for p in list(zip(*boundary.exterior.coords.xy))[:-1]
+        ]
+        # get the leftmost point
+        left = min([p[0] for p in boundary])
+        topleft_point = sorted([p for p in boundary if p[0] == left], key=lambda x: x[1])[
+            -1
+        ]
+
+        # get the rightmost points
+        right = max([p[0] for p in boundary])
+        rightmost_point = sorted(
+            [p for p in boundary if p[0] == right], key=lambda x: x[1]
+        )[-1]
+
+        # get the index of leftmost point
+        idx_left = boundary.index(topleft_point)
+        surface = boundary[idx_left:] + boundary[:idx_left]
+
+        # get the index of the rightmost point
+        idx_right = surface.index(rightmost_point)
+        surface = surface[: idx_right + 1]
+        return surface
 
     def contains_point(self, point: Point) -> bool:
         """

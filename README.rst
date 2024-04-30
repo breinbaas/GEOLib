@@ -63,6 +63,49 @@ Use the next function to get a list of layers from top to bottom that intersect 
     ...
     dm.layer_intersections_at(0.0)
 
+* Get the characteristic points
+
+The characteristic points which can be found in the waternet creator settings are a bit hidden.. but not anymore!
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.get_characteristic_point(CharacteristicPointEnum.EMBANKEMENT_TOE_WATER_SIDE)
+
+    # possible values for the CharacteristicPointEnum are;
+    #
+    # NONE
+    # EMBANKEMENT_TOE_WATER_SIDE
+    # EMBANKEMENT_TOP_WATER_SIDE
+    # EMBANKEMENT_TOP_LAND_SIDE
+    # SHOULDER_BASE_LAND_SIDE
+    # EMBANKEMENT_TOE_LAND_SIDE
+    # DITCH_EMBANKEMENT_SIDE
+    # DITCH_BOTTOM_EMBANKEMENT_SIDE
+    # DITCH_BOTTOM_LAND_SIDE
+    # DITCH_LAND_SIDE
+
+
+* Get the waternet creator settings
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm._get_waternetcreator_settings() 
+
+* Get the surface of the geometry
+
+You can easily get the points that define the surface of the geometry as a list of x,z tuples using the following code;
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.surface 
+    
+
 Installation
 ------------
 
