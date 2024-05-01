@@ -127,7 +127,7 @@ Use the next function to get the intersection with the soillayers at the given x
 
 * Run the waternet creator from code
 
-It is possible to run the waternet creator from code. You can either use parameters or the already defined waternet creator settings if the are
+It is possible to run the waternet creator from code. You can either use parameters or the already defined waternet creator settings if they are
 available in the model. 
 
 **NOTE** this code is under development and testing is needed, use at your own risk!
