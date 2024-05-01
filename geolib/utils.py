@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import Any, List, Tuple
 from shapely import LineString, MultiPoint, Point
 
-from pydantic import validator
+from ._compat import IS_PYDANTIC_V2
+
+if IS_PYDANTIC_V2:
+    from pydantic import field_validator
+else:
+    from pydantic import validator
 
 _CAMEL_TO_SNAKE_PATTERN = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -143,3 +148,7 @@ def bottom_of_polygon(points: List[Tuple[float, float]]) -> List[Tuple[float, fl
         points = points[idx_right:] + points[: idx_left + 1]
 
     return points[::-1]
+    if IS_PYDANTIC_V2:
+        return field_validator(*field_name)(field_must_contain_newlines)
+    else:
+        return validator(*field_name, allow_reuse=True)(field_must_contain_newlines)
