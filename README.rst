@@ -148,7 +148,7 @@ Use the next function to get the intersection with the soillayers at the given x
 
 * Get soilstresses at a given x coordinate
 
-The next code return the soil stress as a list of [z, total_stress, water_stress, effective_stress];
+The next code return the soil stress as a list of tuples of (z, total_stress, water_stress, effective_stress);
 
 .. code-block:: python
 
