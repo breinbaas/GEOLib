@@ -1268,6 +1268,22 @@ class Geometry(DStabilitySubStructure):
                 return layer
         return None
 
+    def top_layer(self) -> Optional[PersistableLayer]:
+        """Get the layer with the highest point on the geometry, this is (only?) useful
+        for the waternet creator in which case you only have one layer that is on top
+
+        Returns:
+            Optional[PersistableLayer]: The layer with the highest point on the geometry
+        """
+        result = None
+        zmax = self.zmin
+        for layer in self.Layers:
+            for p in layer.Points:
+                if p.Z > zmax:
+                    result = layer
+                    zmax = p.Z
+        return result
+
     def layer_intersections_at(
         self, x: float, layer_soil_dict: Dict
     ) -> List[Tuple[float, float, PersistableSoil]]:

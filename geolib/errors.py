@@ -15,6 +15,14 @@ class CalculationError(GEOLibError):
         self.message = message
 
 
+class WaternetCreatorError(GEOLibError):
+    """WaternetCreatorError with a status_code."""
+
+    def __init__(self, status_code, message):
+        self.status_code = status_code
+        self.message = message
+
+
 class ParserError(GEOLibError):
     """Base class for Parser errors."""
 

@@ -53,6 +53,15 @@ It is possible to get a layer from a given point.
     ...
     dm.layer_at(x=0.0, z=-10.0)
 
+* Get layer by name or label
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.layer_by_id('51')
+    dm.layer_by_label('L 1')
+
 * Get soil layer intersection at a given x coordinate
 
 Use the next function to get a list of layers from top to bottom that intersect at a given x coordinate
@@ -97,13 +106,14 @@ The characteristic points which can be found in the waternet creator settings ar
 
 * Get the surface of the geometry
 
-You can easily get the points that define the surface of the geometry as a list of x,z tuples using the following code;
+You can easily get the points that define the surface of the geometry or the points that define the ditch as a list of x,z tuples using the following code;
 
 .. code-block:: python
 
     dm = DStabilityModel()
     ...
     dm.surface 
+    dm.ditch_points
 
 * Get the z coordinate(s) at a given x coordinate
 
@@ -114,6 +124,51 @@ Use the next function to get the intersection with the soillayers at the given x
     dm = DStabilityModel()
     ...
     dm.z_at(x=0, highest_only=False)
+
+* Run the waternet creator from code
+
+It is possible to run the waternet creator from code. You can either use parameters or the already defined waternet creator settings if the are
+available in the model. 
+
+**NOTE** this code is under development and testing is needed, use at your own risk!
+
+Here is an example where the user has defined the waternet creator settings in the user interface and save the stix file;
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.generate_waternet(river_level_mhw=2.0, river_level_ghw=0.0, polder_level=-1.0)
+
+And here is an example where the user defines the necessary parameters in the function (note that if 
+parameters are missing the code tries to get them from the available waternet creator settings;
+
+.. code-block:: python
+
+    from geolib.internal import EmbankmentSoilScenarioEnum
+
+    dm = DStabilityModel()
+    ...
+    dm.generate_waternet(
+        river_level_mhw = 2.0,
+        river_level_ghw = 0.0,
+        polder_level = -1.0,
+        x_embankment_toe_land_side = 10.0,
+        x_embankment_top_land_side = 15.0,
+        x_embankment_toe_water_side = 25.0,
+        material_layout = EmbankmentSoilScenarioEnum["CLAY_EMBANKMENT_ON_CLAY]",
+        aquifer_label = 'L 1',
+        aquifer_inside_aquitard_label = 'L 4',
+        intrusion_length = 3.0,
+        hydraulic_head_pl2_inward = -0.5,
+        hydraulic_head_pl2_outward = -0.5,
+        inward_leakage_length_pl3 = 650,
+        outward_leakage_length_pl3 = 10,
+        inward_leakage_length_pl4 = 1000,
+        outward_leakage_length_pl4 = 30,
+    )
+
+**NOTE** adjust for uplift is not yet implemented
 
 Installation
 ------------
