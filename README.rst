@@ -132,7 +132,7 @@ available in the model.
 
 **NOTE** this code is under development and testing is needed, use at your own risk!
 
-Here is an example where the user has defined the waternet creator settings in the user interface and save the stix file;
+Here is an example where the input of the waternet creator settings in the file is used to find in the required parameters;
 
 .. code-block:: python
 
