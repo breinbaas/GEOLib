@@ -27,6 +27,7 @@ from .internal import (
     DStabilityStructure,
     EmbankmentSoilScenarioEnum,
     Geometry,
+    PersistableHeadLine,
     PersistableLayer,
     PersistablePoint,
     PersistableSoil,
@@ -49,6 +50,7 @@ from .states import DStabilityStateLinePoint, DStabilityStatePoint
 from ..meta import MetaData
 from ...errors import CalculationError, WaternetCreatorError
 from ...utils import polyline_polyline_intersections, top_of_polygon, bottom_of_polygon
+from ...const import UNIT_WEIGHT_WATER
 
 logger = logging.getLogger(__name__)
 meta = MetaData()
@@ -170,35 +172,6 @@ class DStabilityModel(BaseModel):
         else:
             return []
 
-    def _get_next_id(self) -> int:
-        self.current_id += 1
-        return self.current_id
-
-    def parse(self, *args, **kwargs):
-        try:
-            super().parse(*args, **kwargs)
-        except ValueError as e:
-            if e.args[0] == "Can't listdir a file":
-                executable = meta.dstability_migration_console_path
-                if not executable.exists():
-                    logger.error(
-                        f"The path to the dstability migration console (geolib.env) is not set or invalid`{executable}`, cannot auto convert this file"
-                    )
-                    raise CalculationError(
-                        -1,
-                        f"DStability Migration Console executable not set or not found at {executable}.",
-                    )
-                try:
-                    subprocess.run([executable, self.filename, self.filename])
-                    self.parse(self.filename)
-                except Exception as e:
-                    logger.error(
-                        f"Error running the migration console on this file; '{e}'"
-                    )
-                    raise CalculationError(f"Cannot open stix file, got error '{e}'")
-
-        self.current_id = self.datastructure.get_unique_id()
-
     @property
     def waternets(self) -> List[Waternet]:
         return self.datastructure.waternets
@@ -247,6 +220,47 @@ class DStabilityModel(BaseModel):
                             result[layer.Id] = soil
         return result
 
+    @property
+    def phreatic_line(self) -> Optional[PersistableHeadLine]:
+        wnet = self._get_waternet(self.current_scenario, self.current_stage)
+        phreatic_headline_id = wnet.PhreaticLineId
+
+        if phreatic_headline_id is None:
+            return None
+
+        for headline in wnet.HeadLines:
+            if headline.Id == phreatic_headline_id:
+                return headline
+
+    def _get_next_id(self) -> int:
+        self.current_id += 1
+        return self.current_id
+
+    def parse(self, *args, **kwargs):
+        try:
+            super().parse(*args, **kwargs)
+        except ValueError as e:
+            if e.args[0] == "Can't listdir a file":
+                executable = meta.dstability_migration_console_path
+                if not executable.exists():
+                    logger.error(
+                        f"The path to the dstability migration console (geolib.env) is not set or invalid`{executable}`, cannot auto convert this file"
+                    )
+                    raise CalculationError(
+                        -1,
+                        f"DStability Migration Console executable not set or not found at {executable}.",
+                    )
+                try:
+                    subprocess.run([executable, self.filename, self.filename])
+                    self.parse(self.filename)
+                except Exception as e:
+                    logger.error(
+                        f"Error running the migration console on this file; '{e}'"
+                    )
+                    raise CalculationError(f"Cannot open stix file, got error '{e}'")
+
+        self.current_id = self.datastructure.get_unique_id()
+
     def layer_at(self, x: float, z: float) -> Optional[PersistableLayer]:
         """Get the layer at the given x, z coordinate
 
@@ -283,6 +297,74 @@ class DStabilityModel(BaseModel):
                 )
         else:
             return None
+
+    def phreatic_level_at(self, x: float) -> Optional[float]:
+        phreatic_line = self.phreatic_line
+        if phreatic_line is None:
+            return None
+
+        phreatic_line_points = [(p.X, p.Z) for p in phreatic_line.Points]
+        intersections = polyline_polyline_intersections(
+            [(x, self.zmax + 0.01), (x, self.zmin - 0.01)], phreatic_line_points
+        )
+
+        if len(intersections) == 0:
+            return None
+
+        return intersections[0][1]
+
+    def stresses_at(
+        self, x: float, include_loads: bool = False
+    ) -> List[Tuple[float, float, float, float]]:
+        result = []
+        if include_loads:
+            raise NotImplementedError(
+                "Including loads in the stresses calculation is not added yet"
+            )
+        layers = self.layer_intersections_at(x)
+
+        if len(layers) == 0:
+            return result
+
+        phreatic_level = self.phreatic_level_at(x)
+
+        if phreatic_level is None:
+            phreatic_level = layers[-1][1] - 0.01
+
+        stot, u = 0.0, 0.0
+        if layers[0][0] < phreatic_level:
+            result.append((phreatic_level, 0.0, 0.0, 0.0))
+            u += (phreatic_level - layers[0][0]) * UNIT_WEIGHT_WATER
+            stot = u
+            result.append((layers[0][0], stot, u, 0.0))
+        else:
+            result.append((layers[0][0], stot, u, 0.0))
+
+        for layer in layers:
+            if layer[0] <= phreatic_level:
+                stot += layer[2].VolumetricWeightBelowPhreaticLevel * (
+                    layer[0] - layer[1]
+                )
+                u = max((phreatic_level - layer[1]) * UNIT_WEIGHT_WATER, 0.0)
+                result.append((layer[1], stot, u, max(stot - u, 0)))
+            elif layer[1] >= phreatic_level:
+                stot += layer[2].VolumetricWeightAbovePhreaticLevel * (
+                    layer[0] - layer[1]
+                )
+                u = max((phreatic_level - layer[1]) * UNIT_WEIGHT_WATER, 0.0)
+                result.append((layer[1], stot, u, max(stot - u, 0)))
+            else:
+                stot += layer[2].VolumetricWeightAbovePhreaticLevel * (
+                    layer[0] - phreatic_level
+                )
+                result.append((layer[1], stot, 0.0, max(stot - u, 0)))
+                stot += layer[2].VolumetricWeightAbovePhreaticLevel * (
+                    phreatic_level - layer[1]
+                )
+                u = max((phreatic_level - layer[1]) * UNIT_WEIGHT_WATER, 0.0)
+                result.append((layer[1], stot, u, max(stot - u, 0)))
+
+        return result
 
     def layer_by_id(self, layer_id: str) -> Optional[PersistableLayer]:
         geometry = self._get_geometry(self.current_scenario, self.current_stage)

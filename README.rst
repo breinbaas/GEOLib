@@ -115,6 +115,27 @@ You can easily get the points that define the surface of the geometry or the poi
     dm.surface 
     dm.ditch_points
 
+* Phreatic line as a property
+
+You can access the phreatic line using;
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.phreatic_line # can be None if no phreatic line is assigned
+
+* Phreatic level at any x coordinate
+
+You can get the phreatic level at a given x coordinate using;
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.phreatic_level_at(0.0) # can be None if no phreatic line is assigned
+    
+
 * Get the z coordinate(s) at a given x coordinate
 
 Use the next function to get the intersection with the soillayers at the given x coordinate. You can choose to only return the highest intersection or all intersections from top to bottom
@@ -124,6 +145,18 @@ Use the next function to get the intersection with the soillayers at the given x
     dm = DStabilityModel()
     ...
     dm.z_at(x=0, highest_only=False)
+
+* Get soilstresses at a given x coordinate
+
+The next code return the soil stress as a list of [z, total_stress, water_stress, effective_stress];
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.stresses_at(x=0)
+
+**NOTE** it is not yet possible to include the effect of loads
 
 * Run the waternet creator from code
 
