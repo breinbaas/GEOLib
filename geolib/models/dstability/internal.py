@@ -1501,13 +1501,19 @@ class Geometry(DStabilitySubStructure):
 
         return False
 
-    def layer_at(self, x: float, z: float) -> Optional[PersistableLayer]:
+    def layer_at(
+        self, x: float, z: float, raise_error_on_no_result: bool = False
+    ) -> Optional[PersistableLayer]:
         p = ShapelyPoint(x, z)
         for layer in self.Layers:
             pg = layer.to_shapely_polygon()
-            if pg.contains(p):
+            if pg.contains(p) or p.covered_by(pg):
                 return layer
-        return None
+
+        if raise_error_on_no_result:
+            raise ValueError(f"No layer found at location x={x}, z={z}")
+        else:
+            return None
 
     def top_layer(self) -> Optional[PersistableLayer]:
         """Get the layer with the highest point on the geometry, this is (only?) useful
@@ -1537,29 +1543,33 @@ class Geometry(DStabilitySubStructure):
         Returns:
             List[Tuple[float, float, PersistableSoil]]: A list with top, bottom and soil tuples
         """
-        result = []
-        line_points = [(x, self.zmax + 0.01), (x, self.zmin - 0.01)]
-        for layer in self.Layers:
-            layer_points = [(p.X, p.Z) for p in layer.Points]
-            for intersection in polyline_polyline_intersections(
-                line_points, layer_points
-            ):
-                result.append(intersection[1])
+        try:
+            result = []
+            line_points = [(x, self.zmax + 0.01), (x, self.zmin - 0.01)]
+            for layer in self.Layers:
+                layer_points = [(p.X, p.Z) for p in layer.Points]
+                for intersection in polyline_polyline_intersections(
+                    line_points, layer_points
+                ):
+                    result.append(intersection[1])
 
-        result = sorted(
-            list(set(result)), reverse=True
-        )  # sort top to bottom and remove duplicates
+            result = sorted(
+                list(set(result)), reverse=True
+            )  # sort top to bottom and remove duplicates
 
-        # now remove the intersection with no height
-        final_result = []
-        for i in range(1, len(result)):
-            top = result[i - 1]
-            bottom = result[i]
-            layer = self.layer_at(x=x, z=(top + bottom) / 2.0)
-            final_result.append((top, bottom, layer.Id))
+            # now remove the intersection with no height
+            final_result = []
+            for i in range(1, len(result)):
+                top = result[i - 1]
+                bottom = result[i]
+                layer = self.layer_at(x=x, z=(top + bottom) / 2.0)
+                final_result.append((top, bottom, layer.Id))
 
-        # convert ids to soil references
-        final_result = [(e[0], e[1], layer_soil_dict[e[2]]) for e in final_result]
+            # convert ids to soil references
+            if len(final_result) > 0:
+                final_result = [(e[0], e[1], layer_soil_dict[e[2]]) for e in final_result]
+        except Exception as e:
+            raise e
 
         return final_result
 

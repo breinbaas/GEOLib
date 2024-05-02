@@ -210,14 +210,14 @@ class DStabilityModel(BaseModel):
             Dict: A dictionary containing the layer id's as key and the PersistibleSoil as value
         """
         result = {}
-        for layer in self._get_geometry(self.current_scenario, self.current_stage).Layers:
-            for soillayer in self._get_soil_layers(
-                self.current_scenario, self.current_stage
-            ).SoilLayers:
-                if layer.Id == soillayer.LayerId:
-                    for soil in self.soils.Soils:
-                        if soil.Id == soillayer.SoilId:
-                            result[layer.Id] = soil
+        for i in range(len(self.scenarios)):
+            for j in range(len(self.scenarios[i].Stages)):
+                for layer in self._get_geometry(i, j).Layers:
+                    for soillayer in self._get_soil_layers(i, j).SoilLayers:
+                        if layer.Id == soillayer.LayerId:
+                            for soil in self.soils.Soils:
+                                if soil.Id == soillayer.SoilId:
+                                    result[layer.Id] = soil
         return result
 
     @property
@@ -285,7 +285,7 @@ class DStabilityModel(BaseModel):
 
         Returns:
             List[float]: A list of intersections sorted from high to low or only the highest point if highest_only is True
-        """
+        """        
         intersections = self.layer_intersections_at(x)
 
         if len(intersections) > 0:
@@ -297,6 +297,7 @@ class DStabilityModel(BaseModel):
                 )
         else:
             return None
+    
 
     def phreatic_level_at(self, x: float) -> Optional[float]:
         phreatic_line = self.phreatic_line
@@ -633,12 +634,13 @@ class DStabilityModel(BaseModel):
             # did we manage to get the layer?
             if aquifer_layer is None:
                 raise WaternetCreatorError(
-                    "Could not get the aquifer layer by the given name or label"
+                    0, "Could not get the aquifer layer by the given name or label"
                 )
             # and if we have a layer we also need the next parameters
             if inward_leakage_length_pl3 is None or outward_leakage_length_pl3 is None:
                 raise WaternetCreatorError(
-                    "PL3 is set but the inward and/or outward leakage lengths are missing."
+                    0,
+                    "PL3 is set but the inward and/or outward leakage lengths are missing.",
                 )
 
         # if we have an aquifer, get the layer and check the input
@@ -660,12 +662,14 @@ class DStabilityModel(BaseModel):
             # did we manage to get the layer?
             if aquifer_inside_aquitard_layer is None:
                 raise WaternetCreatorError(
-                    "Could not get the aquifer inside aquitard layer by the given name or label"
+                    0,
+                    "Could not get the aquifer inside aquitard layer by the given name or label",
                 )
             # and if we have a layer we also need the next parameters
             if inward_leakage_length_pl4 is None or outward_leakage_length_pl4 is None:
                 raise WaternetCreatorError(
-                    f"PL4 is set but the inward and/or outward leakage lengths are missing."
+                    0,
+                    f"PL4 is set but the inward and/or outward leakage lengths are missing.",
                 )
 
         h = river_level_mhw - self.z_at(pt_embankment_toe_land_side.x)
@@ -677,7 +681,8 @@ class DStabilityModel(BaseModel):
 
         if len(intersections) == 0:
             raise WaternetCreatorError(
-                f"No intersection with the surface and the given river level ({self.river_level_mhw}) found."
+                0,
+                f"No intersection with the surface and the given river level ({self.river_level_mhw}) found.",
             )
 
         Ax, Az = intersections[0]
@@ -1132,7 +1137,7 @@ class DStabilityModel(BaseModel):
 
             else:
                 raise WaternetCreatorError(
-                    "Scenario with correction for uplift not yet implemented!"
+                    0, "Scenario with correction for uplift not yet implemented!"
                 )
 
     def has_result(
