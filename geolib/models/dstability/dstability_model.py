@@ -285,7 +285,7 @@ class DStabilityModel(BaseModel):
 
         Returns:
             List[float]: A list of intersections sorted from high to low or only the highest point if highest_only is True
-        """        
+        """
         intersections = self.layer_intersections_at(x)
 
         if len(intersections) > 0:
@@ -297,7 +297,6 @@ class DStabilityModel(BaseModel):
                 )
         else:
             return None
-    
 
     def phreatic_level_at(self, x: float) -> Optional[float]:
         phreatic_line = self.phreatic_line
@@ -843,9 +842,20 @@ class DStabilityModel(BaseModel):
                 Fx3 = Fx1
         else:
             # If no ditch, lin extrapolation to polder level from C to E
-            Fx1 = Ex + (Ez1 - Fz) * (Ex - Cx) / (Ez1 - Cz1)
-            Fx2 = Ex + (Ez2 - Fz) * (Ex - Cx) / (Ez2 - Cz2)
-            Fx3 = Ex + (Ez3 - Fz) * (Ex - Cx) / (Ez3 - Cz3)
+            # TODO can Cz - Ex < 0?
+            if Cz1 - Ez1 > 0.0:
+                Fx1 = Ex + (Ez1 - Fz) * (Ex - Cx) / (Ez1 - Cz1)
+            else:
+                Fx1 = Ex + 0.01
+
+            if Cz2 - Ez2 > 0.0:
+                Fx2 = Ex + (Ez2 - Fz) * (Ex - Cx) / (Ez2 - Cz2)
+            else:
+                Fx2 = Ex + 0.01
+            if Cz3 - Ez3 > 0.0:
+                Fx3 = Ex + (Ez3 - Fz) * (Ex - Cx) / (Ez3 - Cz3)
+            else:
+                Fx3 = Ex + 0.01
 
         # TODO is it possible that wncs.EmbankmentSoilScenario can be None?
         if (
