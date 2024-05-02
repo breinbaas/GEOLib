@@ -62,6 +62,18 @@ It is possible to get a layer from a given point.
     dm.layer_by_id('51')
     dm.layer_by_label('L 1')
 
+* Set a scenario / stage by label
+
+Use the following code to set a scenario and / or stage by label (case insensitive);
+
+.. code-block:: python
+
+    dm = DStabilityModel()
+    ...
+    dm.set_scenario_and_stage_by_label("Norm", "Norm")
+    dm.set_scenario_by_label("Norm")
+    dm.set_stage_by_label("Norm")
+
 * Get soil layer intersection at a given x coordinate
 
 Use the next function to get a list of layers from top to bottom that intersect at a given x coordinate
@@ -165,13 +177,13 @@ available in the model.
 
 **NOTE** this code is under development and testing is needed, use at your own risk!
 
-Here is an example where the input of the waternet creator settings in the file is used to find in the required parameters;
+Here is an example where only the normative waterlevel is given and the rest of the input is expected to be found in the waternet creator settings for the scenario / stage;
 
 .. code-block:: python
 
     dm = DStabilityModel()
     ...
-    dm.generate_waternet(river_level_mhw=2.0, river_level_ghw=0.0, polder_level=-1.0)
+    dm.generate_waternet(river_level_mhw=2.0)
 
 And here is an example where the user defines the necessary parameters in the function (note that if 
 parameters are missing the code tries to get them from the available waternet creator settings;
@@ -189,7 +201,7 @@ parameters are missing the code tries to get them from the available waternet cr
         x_embankment_toe_land_side = 10.0,
         x_embankment_top_land_side = 15.0,
         x_embankment_toe_water_side = 25.0,
-        material_layout = EmbankmentSoilScenarioEnum["CLAY_EMBANKMENT_ON_CLAY]",
+        material_layout = EmbankmentSoilScenarioEnum["CLAY_EMBANKMENT_ON_CLAY"],
         aquifer_label = 'L 1',
         aquifer_inside_aquitard_label = 'L 4',
         intrusion_length = 3.0,

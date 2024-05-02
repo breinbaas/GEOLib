@@ -451,11 +451,35 @@ class DStabilityModel(BaseModel):
         else:
             return Point(x=x, z=self.z_at(x))
 
+    def set_scenario_by_label(self, label: str) -> None:
+        for i, scenario in enumerate(self.datastructure.scenarios):
+            if scenario.Label.strip().lower() == label.strip().lower():
+                self.current_scenario = i
+                return
+
+        raise ValueError(f"Cannot find scenario with label '{scenario.Label}'")
+
+    def set_stage_by_label(self, label: str) -> None:
+        for i, stage in enumerate(
+            self.datastructure.scenarios[self.current_scenario].Stages
+        ):
+            if stage.Label.strip().lower() == label.strip().lower():
+                self.current_stage = i
+                return
+
+        raise ValueError(f"Cannot find stage with label '{stage.Label}'")
+
+    def set_scenario_and_stage_by_label(
+        self, scenario_label: str, stage_label: str
+    ) -> None:
+        self.set_scenario_by_label(scenario_label)
+        self.set_stage_by_label(stage_label)
+
     def generate_waternet(
         self,
-        river_level_mhw: float,
-        river_level_ghw: float,
-        polder_level: float,
+        river_level_mhw: Optional[float] = None,
+        river_level_ghw: Optional[float] = None,
+        polder_level: Optional[float] = None,
         B_offset: Optional[float] = None,
         C_offset: Optional[float] = None,
         E_offset: Optional[float] = None,
@@ -540,6 +564,12 @@ class DStabilityModel(BaseModel):
             pt_shoulder_base_land_side = None
 
         # get setting from the waternet creator settings if they are None
+        if river_level_ghw is None:
+            river_level_ghw = wncs.MeanWaterLevel
+        if river_level_mhw is None:
+            river_level_mhw = wncs.NormativeWaterLevel
+        if polder_level is None:
+            polder_level = wncs.WaterLevelHinterland
         if B_offset is None:
             B_offset = wncs.OffsetEmbankmentTopWaterSide
             if isnan(B_offset):
