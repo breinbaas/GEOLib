@@ -2,8 +2,9 @@ import abc
 from enum import Enum
 from pathlib import Path
 import logging
-from math import isnan, exp
+from math import isnan, exp, nan
 from typing import BinaryIO, List, Optional, Set, Type, Union, Dict, Tuple
+import numpy as np
 
 import matplotlib.pyplot as plt
 from pydantic import DirectoryPath, FilePath
@@ -49,7 +50,12 @@ from .serializer import DStabilityInputSerializer, DStabilityInputZipSerializer
 from .states import DStabilityStateLinePoint, DStabilityStatePoint
 from ..meta import MetaData
 from ...errors import CalculationError, WaternetCreatorError
-from ...utils import polyline_polyline_intersections, top_of_polygon, bottom_of_polygon
+from ...utils import (
+    polyline_polyline_intersections,
+    top_of_polygon,
+    bottom_of_polygon,
+    polyline_z_at,
+)
 from ...const import UNIT_WEIGHT_WATER
 
 logger = logging.getLogger(__name__)
@@ -314,8 +320,10 @@ class DStabilityModel(BaseModel):
         return intersections[0][1]
 
     def stresses_at(
-        self, x: float, include_loads: bool = False
-    ) -> List[Tuple[float, float, float, float]]:
+        self, x: float, z: float = nan, include_loads: bool = False
+    ) -> Union[
+        Tuple[float, float, float, float], List[Tuple[float, float, float, float]]
+    ]:
         result = []
         if include_loads:
             raise NotImplementedError(
@@ -363,6 +371,10 @@ class DStabilityModel(BaseModel):
                 )
                 u = max((phreatic_level - layer[1]) * UNIT_WEIGHT_WATER, 0.0)
                 result.append((layer[1], stot, u, max(stot - u, 0)))
+
+        if not isnan(z):
+            # TODO interpoleren en enkel de spanningen op deze diepte teruggeven
+            pass
 
         return result
 
@@ -955,7 +967,7 @@ class DStabilityModel(BaseModel):
         if aquifer_label is None and aquifer_id is None:
             return
 
-        aquifer_points = top_of_polygon(
+        aquifer_points_top = top_of_polygon(
             [[float(p.X), float(p.Z)] for p in aquifer_layer.Points]
         )
         i = 1
@@ -995,7 +1007,7 @@ class DStabilityModel(BaseModel):
 
             # add the penetration_layer_thickness
             aquifer_points_with_penetration_layer = [
-                [p[0], p[1] + intrusion_length] for p in aquifer_points
+                [p[0], p[1] + intrusion_length] for p in aquifer_points_top
             ]
 
             # add the referenceline
@@ -1038,7 +1050,7 @@ class DStabilityModel(BaseModel):
             )
 
             self.add_reference_line(
-                points=[Point(x=p[0], z=p[1]) for p in aquifer_points],
+                points=[Point(x=p[0], z=p[1]) for p in aquifer_points_top],
                 bottom_headline_id=pl3_id,
                 top_head_line_id=pl3_id,
                 label="Waternetlijn onderste aquifer",
@@ -1079,76 +1091,82 @@ class DStabilityModel(BaseModel):
 
             # NOTE phi3_crest_out = C1A_PL3[1]
             #      phi4_crest_out = C1A_PL4[1]
-            if not adjust_for_uplift:
-                x_embankment_toe_land_side = pt_embankment_toe_land_side.x
-                phi2_crest_out = f_phi2(
-                    x_embankment_top_water_side,
-                    hydraulic_head_pl2_inward,
-                    hydraulic_head_pl2_outward,
-                    self.xmin,
-                    self.xmax,
-                )
-                phi_2_embankment_toe_land_side = f_phi2(
-                    x_embankment_toe_land_side,
-                    hydraulic_head_pl2_inward,
-                    hydraulic_head_pl2_outward,
-                    self.xmin,
-                    self.xmax,
-                )
-                dx = x_embankment_toe_land_side - x_embankment_top_water_side
-                z_d1a = phi_2_embankment_toe_land_side + (
+            x_embankment_toe_land_side = pt_embankment_toe_land_side.x
+            phi2_crest_out = f_phi2(
+                x_embankment_top_water_side,
+                hydraulic_head_pl2_inward,
+                hydraulic_head_pl2_outward,
+                self.xmin,
+                self.xmax,
+            )
+            phi_2_embankment_toe_land_side = f_phi2(
+                x_embankment_toe_land_side,
+                hydraulic_head_pl2_inward,
+                hydraulic_head_pl2_outward,
+                self.xmin,
+                self.xmax,
+            )
+            dx = x_embankment_toe_land_side - x_embankment_top_water_side
+            z_d1a = phi_2_embankment_toe_land_side + (C1A_PL3[1] - phi2_crest_out) * exp(
+                -dx / inward_leakage_length_pl3
+            )
+            D1A = [x_embankment_toe_land_side, z_d1a]
+
+            if aquifer_inside_aquitard_layer is not None:
+                z_d2a = phi_2_embankment_toe_land_side + (
                     C1A_PL3[1] - phi2_crest_out
-                ) * exp(-dx / inward_leakage_length_pl3)
-                D1A = [x_embankment_toe_land_side, z_d1a]
+                ) * exp(-dx / inward_leakage_length_pl4)
+                D2A = [x_embankment_toe_land_side, z_d2a]
 
-                if aquifer_inside_aquitard_layer is not None:
-                    z_d2a = phi_2_embankment_toe_land_side + (
-                        C1A_PL3[1] - phi2_crest_out
-                    ) * exp(-dx / inward_leakage_length_pl4)
-                    D2A = [x_embankment_toe_land_side, z_d2a]
+            dx = self.xmax - x_embankment_top_water_side
+            z_g1a = phi_2_embankment_toe_land_side + (C1A_PL3[1] - phi2_crest_out) * exp(
+                -dx / inward_leakage_length_pl3
+            )
+            G1A = [self.xmax, z_g1a]
 
-                dx = self.xmax - x_embankment_top_water_side
-                z_g1a = phi_2_embankment_toe_land_side + (
+            if aquifer_inside_aquitard_layer is not None:
+                z_g2a = phi_2_embankment_toe_land_side + (
                     C1A_PL3[1] - phi2_crest_out
-                ) * exp(-dx / inward_leakage_length_pl3)
-                G1A = [self.xmax, z_g1a]
+                ) * exp(-dx / inward_leakage_length_pl4)
+                G2A = [self.xmax, z_g2a]
 
-                if aquifer_inside_aquitard_layer is not None:
-                    z_g2a = phi_2_embankment_toe_land_side + (
-                        C1A_PL3[1] - phi2_crest_out
-                    ) * exp(-dx / inward_leakage_length_pl4)
-                    G2A = [self.xmax, z_g2a]
+            pl3_points = [(p[0], p[1]) for p in [A1B, B1B, C1A_PL3, D1A, G1A]]
+            if adjust_for_uplift:
+                x_start = x_embankment_toe_land_side
+                x_end = self.xmax
 
-                pl3_id = self.add_head_line(
-                    points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL3, D1A, G1A]],
-                    label="Stijghoogtelijn 3 (PL3)",
+                for x in np.arange(x_start, x_end, 0.5):
+                    z_pl3 = polyline_z_at(pl3_points, x)
+                    aq3_top = polyline_z_at(aquifer_points_top, x)
+                    stresses = self.stresses_at(x=x, z=aq3_top)
+                    
+                    stresses / 
+                    i = 1
+                    # TODO total stress at x
+
+            pl3_id = self.add_head_line(
+                points=[Point(x=p[0], z=p[1]) for p in pl3_points],
+                label="Stijghoogtelijn 3 (PL3)",
+                scenario_index=self.current_scenario,
+                stage_index=self.current_stage,
+            )
+
+            self.add_reference_line(
+                points=[Point(x=p[0], z=p[1]) for p in aquifer_points_top],
+                bottom_headline_id=pl3_id,
+                top_head_line_id=pl3_id,
+                label="Waternetlijn onderste aquifer",
+                scenario_index=self.current_scenario,
+                stage_index=self.current_stage,
+            )
+            if aquifer_inside_aquitard_layer is not None:
+                pl4_id = self.add_head_line(
+                    points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL4, D2A, G2A]],
+                    label="Stijghoogtelijn 4 (PL4)",
                     scenario_index=self.current_scenario,
                     stage_index=self.current_stage,
                 )
-
-                self.add_reference_line(
-                    points=[Point(x=p[0], z=p[1]) for p in aquifer_points],
-                    bottom_headline_id=pl3_id,
-                    top_head_line_id=pl3_id,
-                    label="Waternetlijn onderste aquifer",
-                    scenario_index=self.current_scenario,
-                    stage_index=self.current_stage,
-                )
-                if aquifer_inside_aquitard_layer is not None:
-                    pl4_id = self.add_head_line(
-                        points=[
-                            Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL4, D2A, G2A]
-                        ],
-                        label="Stijghoogtelijn 4 (PL4)",
-                        scenario_index=self.current_scenario,
-                        stage_index=self.current_stage,
-                    )
-                    # add referenceline but where...
-
-            else:
-                raise WaternetCreatorError(
-                    0, "Scenario with correction for uplift not yet implemented!"
-                )
+                # add referenceline but where...
 
     def has_result(
         self,

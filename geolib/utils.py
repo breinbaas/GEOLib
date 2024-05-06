@@ -148,7 +148,14 @@ def bottom_of_polygon(points: List[Tuple[float, float]]) -> List[Tuple[float, fl
         points = points[idx_right:] + points[: idx_left + 1]
 
     return points[::-1]
-    if IS_PYDANTIC_V2:
-        return field_validator(*field_name)(field_must_contain_newlines)
-    else:
-        return validator(*field_name, allow_reuse=True)(field_must_contain_newlines)
+
+
+def polyline_z_at(points: List[Tuple[float, float]], x: float) -> float:
+    for i in range(1, len(points)):
+        x1, y1 = points[i - 1]
+        x2, y2 = points[i]
+        if x1 <= x and x <= x2:
+            return y1 + (x - x1) / (x2 - x1) * (y2 - y1)
+    raise ValueError(
+        f"Given x coordinate '{x}' is not between the start and end of the polyline"
+    )
