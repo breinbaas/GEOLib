@@ -58,6 +58,7 @@ from ...utils import (
 )
 from ...const import UNIT_WEIGHT_WATER
 
+
 logger = logging.getLogger(__name__)
 meta = MetaData()
 
@@ -150,6 +151,10 @@ class DStabilityModel(BaseModel):
         """
         geometry = self._get_geometry(self.current_scenario, self.current_stage)
         return geometry.surface
+
+    @property
+    def has_ditch(self) -> bool:
+        return len(self.ditch_points) > 0
 
     @property
     def ditch_points(self) -> List[Tuple[float, float]]:
@@ -324,6 +329,20 @@ class DStabilityModel(BaseModel):
     ) -> Union[
         Tuple[float, float, float, float], List[Tuple[float, float, float, float]]
     ]:
+        """Generate the soilstresses at the layer intersections at coordinate x or return the stresses
+        at the given z coordinate
+
+        Args:
+            x (float): The x coordinate on the geometry
+            z (float, optional): If z is given only the stresses at the level are returned, defaults to nan
+            include_loads (bool, optional): Include the loads. Defaults to False.
+
+        Raises:
+            NotImplementedError: Include loads is not implemented yet
+
+        Returns:
+            Union[ Tuple[float, float, float, float], List[Tuple[float, float, float, float]] ]: A list of tuples representing (z, total stresses, waterpressure, effective stress) or a single tuple if z is given
+        """
         result = []
         if include_loads:
             raise NotImplementedError(
@@ -332,7 +351,9 @@ class DStabilityModel(BaseModel):
         layers = self.layer_intersections_at(x)
 
         if len(layers) == 0:
-            return result
+            raise ValueError(
+                f"Cannot calculate stresses at x={x} because there are not intersecions with the geometry"
+            )
 
         phreatic_level = self.phreatic_level_at(x)
 
@@ -373,8 +394,23 @@ class DStabilityModel(BaseModel):
                 result.append((layer[1], stot, u, max(stot - u, 0)))
 
         if not isnan(z):
-            # TODO interpoleren en enkel de spanningen op deze diepte teruggeven
-            pass
+            if z > layers[0][0] and z < phreatic_level:
+                return (z, 0.0, (phreatic_level - z) * UNIT_WEIGHT_WATER, 0.0)
+
+            for i in range(1, len(result)):
+                z1 = result[i - 1][0]  # top
+                z2 = result[i][0]  # bottom
+                if z2 <= z and z <= z1:
+                    stot1 = result[i - 1][1]
+                    stot2 = result[i][1]
+                    u1 = result[i - 1][2]
+                    u2 = result[i][2]
+                    stot_z = stot1 + (z1 - z) / (z1 - z2) * (stot2 - stot1)
+                    u_z = u1 + (z1 - z) / (z1 - z2) * (u2 - u1)
+                    return (z, stot_z, u_z, max(0.0, stot_z - u_z))
+            raise ValueError(
+                f"The given z coordinate '{z}' is outside the geometry limits"
+            )
 
         return result
 
@@ -1131,21 +1167,101 @@ class DStabilityModel(BaseModel):
                 G2A = [self.xmax, z_g2a]
 
             pl3_points = [(p[0], p[1]) for p in [A1B, B1B, C1A_PL3, D1A, G1A]]
-            if adjust_for_uplift:
-                x_start = x_embankment_toe_land_side
-                x_end = self.xmax
+            uplift_points = []
 
-                for x in np.arange(x_start, x_end, 0.5):
+            if adjust_for_uplift:
+                #####
+                # Find the first uplift point
+                # Create a zone from that point + 20m or if we have a ditch, ditch end + 20m
+                # In that zone stay horizontal BUT correct if max head is even lower
+                # After that zone go 1:100 down and keep correcting for max head
+                #####
+                x = (
+                    x_embankment_toe_land_side - 0.01
+                )  # use -0.01 so we can also calculate the last point that might fall on the geometry limit
+                x_end = self.xmax
+                uplift_head = None
+
+                # find the uplift location (if any)
+                while x < x_end:
                     z_pl3 = polyline_z_at(pl3_points, x)
                     aq3_top = polyline_z_at(aquifer_points_top, x)
-                    stresses = self.stresses_at(x=x, z=aq3_top)
-                    
-                    stresses / 
-                    i = 1
-                    # TODO total stress at x
+                    _, stot, _, _ = self.stresses_at(x=x, z=aq3_top)
+                    max_head = aq3_top + stot / UNIT_WEIGHT_WATER
+                    uplift_factor = stot / ((z_pl3 - aq3_top) * UNIT_WEIGHT_WATER)
+
+                    # FIND THE FIRST UPLOAD LOCATION
+                    if uplift_factor < 1.0:
+                        uplift_head = aq3_top + stot / UNIT_WEIGHT_WATER
+                        if self.has_ditch:
+                            x_uplift_end = self.ditch_points[-1][0] + 20.0
+                        else:
+                            x_uplift_end = x + 20
+                        uplift_points.append([x, uplift_head])
+
+                        # keep horizontal but do not allow the head to be above max_head or the previous value
+                        while x <= x_uplift_end:
+                            z_pl3 = polyline_z_at(pl3_points, x)
+                            aq3_top = polyline_z_at(aquifer_points_top, x)
+                            _, stot, _, _ = self.stresses_at(x=x, z=aq3_top)
+                            max_head = aq3_top + stot / UNIT_WEIGHT_WATER
+                            uplift_head = min(uplift_head, max_head)
+                            uplift_points.append([x, uplift_head])
+                            x += 0.5
+
+                        # next go on a 1:100 slope but do not allow the head to be above max_head or the previous value
+                        while x <= x_end:
+                            uplift_head = uplift_head - 0.5 / 100.0
+                            z_pl3 = polyline_z_at(pl3_points, x)
+                            aq3_top = polyline_z_at(aquifer_points_top, x)
+                            _, stot, _, _ = self.stresses_at(x=x, z=aq3_top)
+                            max_head = aq3_top + stot / UNIT_WEIGHT_WATER
+                            uplift_head = min(uplift_head, max_head)
+                            uplift_points.append([x, uplift_head])
+                            x += 0.5
+                    else:
+                        uplift_points.append([x, z_pl3])
+
+                    x += 0.5
+
+                i = 1
+
+                # # TODO > wat doet de waternet creator nou precies? elk punt corrigeren? enkel bij de sloot?
+                # if x_uplift is not None:
+                #     if self.has_ditch:
+                #         x_uplift = self.ditch_points[1][0]  # ditch bottom embankment side
+                #         # recalculate the max head
+                #         z_pl3 = polyline_z_at(pl3_points, x_uplift)
+                #         aq3_top = polyline_z_at(aquifer_points_top, x_uplift)
+                #         _, stot, _, _ = self.stresses_at(x=x_uplift, z=aq3_top)
+                #         uplift_head = aq3_top + stot / UNIT_WEIGHT_WATER
+
+                #     # uplift_factor = stot / ((z_pl3 - aq3_top) * UNIT_WEIGHT_WATER)
+
+                #     # remove all points that are behind point B1B which is the second point in the list
+                #     pl3_points = pl3_points[:2]
+                #     # add the uplift point
+                #     pl3_points.append((x_uplift, uplift_head))
+                #     # if we have a ditch add a point 20m past the ditch top polder side
+                #     if self.has_ditch:
+                #         x = self.ditch_points[-1][0] + 20.0
+                #     else:  # else just 20m away
+                #         x = pl3_points[-1][0] + 20.0
+                #     if x > self.xmax:
+                #         pl3_points.append((self.xmax, uplift_head))
+                #     else:
+                #         pl3_points.append((x, uplift_head))
+                #         pl3_points.append(
+                #             (self.xmax, uplift_head - (self.xmax - x) / 100.0)
+                #         )
+
+            if len(uplift_points) > 0:
+                # move last uplift point to right limit
+                uplift_points[-1][0] = self.xmax
+                pl3_points = pl3_points[:3] + uplift_points
 
             pl3_id = self.add_head_line(
-                points=[Point(x=p[0], z=p[1]) for p in pl3_points],
+                points=[Point(x=round(p[0], 3), z=round(p[1], 3)) for p in pl3_points],
                 label="Stijghoogtelijn 3 (PL3)",
                 scenario_index=self.current_scenario,
                 stage_index=self.current_stage,
@@ -1161,7 +1277,10 @@ class DStabilityModel(BaseModel):
             )
             if aquifer_inside_aquitard_layer is not None:
                 pl4_id = self.add_head_line(
-                    points=[Point(x=p[0], z=p[1]) for p in [A1B, B1B, C1A_PL4, D2A, G2A]],
+                    points=[
+                        Point(x=round(p[0], 3), z=round(p[1], 3))
+                        for p in [A1B, B1B, C1A_PL4, D2A, G2A]
+                    ],
                     label="Stijghoogtelijn 4 (PL4)",
                     scenario_index=self.current_scenario,
                     stage_index=self.current_stage,
