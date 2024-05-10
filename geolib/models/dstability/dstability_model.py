@@ -1226,35 +1226,6 @@ class DStabilityModel(BaseModel):
 
                 i = 1
 
-                # # TODO > wat doet de waternet creator nou precies? elk punt corrigeren? enkel bij de sloot?
-                # if x_uplift is not None:
-                #     if self.has_ditch:
-                #         x_uplift = self.ditch_points[1][0]  # ditch bottom embankment side
-                #         # recalculate the max head
-                #         z_pl3 = polyline_z_at(pl3_points, x_uplift)
-                #         aq3_top = polyline_z_at(aquifer_points_top, x_uplift)
-                #         _, stot, _, _ = self.stresses_at(x=x_uplift, z=aq3_top)
-                #         uplift_head = aq3_top + stot / UNIT_WEIGHT_WATER
-
-                #     # uplift_factor = stot / ((z_pl3 - aq3_top) * UNIT_WEIGHT_WATER)
-
-                #     # remove all points that are behind point B1B which is the second point in the list
-                #     pl3_points = pl3_points[:2]
-                #     # add the uplift point
-                #     pl3_points.append((x_uplift, uplift_head))
-                #     # if we have a ditch add a point 20m past the ditch top polder side
-                #     if self.has_ditch:
-                #         x = self.ditch_points[-1][0] + 20.0
-                #     else:  # else just 20m away
-                #         x = pl3_points[-1][0] + 20.0
-                #     if x > self.xmax:
-                #         pl3_points.append((self.xmax, uplift_head))
-                #     else:
-                #         pl3_points.append((x, uplift_head))
-                #         pl3_points.append(
-                #             (self.xmax, uplift_head - (self.xmax - x) / 100.0)
-                #         )
-
             if len(uplift_points) > 0:
                 # move last uplift point to right limit
                 uplift_points[-1][0] = self.xmax
