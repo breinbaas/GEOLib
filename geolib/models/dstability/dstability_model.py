@@ -558,7 +558,7 @@ class DStabilityModel(BaseModel):
         linestring2 = self.to_shapely_linestring(layer2.Points)
 
         # Create a union of the two polygons and polygonize it creating two connected polygons
-        union = linestring1.union(linestring2)
+        union = linestring1.union(linestring2, grid_size=0.001)
         result = [geom for geom in polygonize(union)]
 
         # If the result has two polygons, we return them, otherwise we return the original polygons
